@@ -1,0 +1,22 @@
+<style>
+.center-page {
+    position: absolute;
+    margin:auto;
+    top:0;
+    right:0;
+    bottom: 0;
+    left: 0;
+    width: fit-content;
+    height: fit-content;
+}
+</style>
+    <div class="center-page" >
+        <p>Name (for identification):</p>
+        <form  method="post" action="game">
+            {% csrf_token %}
+            <input name='name'>
+            <button type='submit'>Submit</button>
+        </form>
+    </div>
+
+

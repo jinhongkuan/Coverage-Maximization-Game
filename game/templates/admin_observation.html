@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content_main %}
+<p style="text-align: center">Admin Observation View</p>
+<br>
+
+<!--Board is loaded through javascript--> 
+<div style="display:table; text-align: center">
+    <div style="display: table-row; width:600px; height:500px">
+        <div id="board" style="display: table-cell; width:50%; height:500px; position:fixed">
+        </div>
+        <div id="graph" style="display: table-cell; width:50%; height:500px; position: relative">
+        </div>
+    </div>
+</div>
+
+
+
+{% csrf_token %}
+<style>
+    .board {
+        text-align: center;
+    }
+</style>
+<script>
+
+var history = -1;
+
+$(document).ready(function(){
+    $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}} });
+    $("#graph").load("graph", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "game_id": {{game_id}} });
+    setInterval(function(e){
+        $.ajax({url: "board", data: {"poll" : "true", "admin" : true}, method:"GET", success: function(result){
+    if (result=="True")
+    {
+        $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}} });
+        $("#graph").load("graph", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "game_id": {{game_id}} });
+    }
+  }});
+    }, 1000);
+});
+
+
+function play_history(e)
+{
+    setInterval(function(e){
+        console.log($("#board").val());
+        history++;
+        boundFunc = $("#board").load.bind(document); 
+        boundFunc("board", {"history_index" : history, csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")});
+    }, 2000);
+    
+}
+
+</script>
+
+{% endblock %}

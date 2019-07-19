@@ -1,0 +1,66 @@
+<div class='grid-container'>
+        
+        {% for key,value in cells.items %}
+        {% with value.0 as class_type %}
+        {% with value.1 as content %}
+        {% with key.0|add:1 as r %}
+        {% with key.1|add:1 as c %}
+        <div class = "{{class_type}}" style="grid-row : {{r}}; grid-column : {{c}}" onclick="relay(this,'{{key}}')">
+                {{content|safe}}
+        </div>
+        {% endwith %}
+        {% endwith %}
+        {% endwith %}
+        {% endwith %}
+        {% endfor %}
+
+</div>
+<div id="redirect" hidden>{{redirect}}</div>
+<style>
+        .grid-container {
+        display: inline-grid;
+        grid-auto-columns: 50px;
+        grid-auto-rows: 50px;
+        border-color: black;
+        border-style: solid;
+        margin: auto;
+    }
+
+    .black-grid {
+        border-color: black;
+        background-color: black;
+    }
+
+    .white-grid {
+        border-color: black;
+        background-color: white;
+    }
+
+    .grey-grid {
+        border-color: black;
+        background-color: grey;
+    }
+
+    .singly-covered-grid {
+        border-color: black;
+        background-color: lime;
+    }
+
+    .doubly-covered-grid {
+        border-color: black;
+        background-color: #00dd00;
+    }
+
+  .board-message {
+        margin: 10px 0px;
+        display: inline-block;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 18px;
+    }
+    </style>
+    <br>
+<div class="board-message">{{message|safe}}<br><br>Current map: {{map_name}}</div>
+<script>
+    $(".board-message").width($(".grid-container").width());
+    $(".board-message").css("text-align", "center");
+    </script>

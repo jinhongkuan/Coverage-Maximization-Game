@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content_main %}
+<h2>Welcome to Coverage Maximization Game</h2>
+<form action="game" method="POST">
+    {% csrf_token %}
+    <input type="submit" name = "command" value="Start Session" />
+    <input type="submit" name = "command" value="Continue Session" />
+</form>
+{% endblock %}

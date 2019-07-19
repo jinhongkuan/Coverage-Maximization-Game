@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content_main %}
+<div>
+    <h2>Admin Preview</h2>
+    <h3>Players</h3>
+    <table>
+    <tr>
+        <th>IP</th>
+        <th>Name</th>
+        <th>game_ids</th>
+    </tr>
+    {% for row in player_table %}
+    
+    <tr>
+    {% for cell in row %}
+    <td>{{cell|safe}}</td>
+    {% endfor %}
+    </tr>
+    {% endfor %}
+    </table>
+    <h3>Games</h3>
+    <table>
+            <tr>
+                <th>id</th>
+                <th>map</th>
+                <th>players</th>
+                <th>turns</th>
+            </tr>
+            {% for row in game_table %}
+            
+            <tr>
+            {% for cell in row %}
+            <td>{{cell|safe}}</td>
+            {% endfor %}
+            </tr>
+            {% endfor %}
+            </table>
+</div>
+{% endblock %}

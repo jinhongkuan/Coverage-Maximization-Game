@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block content_main %}
+<p style="text-align: center">Coverage Maximization Game</p>
+<br>
+
+<!--Board is loaded through javascript--> 
+<div class="board" id="board">
+</div>
+
+{% csrf_token %}
+<style>
+    .board {
+        text-align: center;
+    }
+</style>
+<script>
+
+var history = -1;
+
+$(document).ready(function(){
+    $("#board").load("board");
+    $(document).keydown(respond_keypress);
+    setInterval(function(e){
+        $.ajax({url: "board", data: {"poll" : "true"}, method:"GET", success: function(result){
+    if (result=="True")
+    {
+        $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")}, 
+        function() {
+            if ($("#redirect").html().length > 0)
+            {
+                window.location.replace($("#redirect").html());
+            }
+        });
+    } else if (result == "False") {
+
+    } else {
+        window.location.replace(result);
+    }
+  }});
+    }, 1000);
+});
+
+function respond_keypress(e)
+{
+    $("#board").load("board", {"key_code" : e.keyCode, csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")},
+   );
+}
+
+function play_history(e)
+{
+    setInterval(function(e){
+        console.log($("#board").val());
+        history++;
+        boundFunc = $("#board").load.bind(document); 
+        boundFunc("board", {"history_index" : history, csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")});
+    }, 2000);
+    
+}
+
+function relay(source, data)
+{
+    $("#board").load("board", {"click_data" : data, csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")},
+    function() {
+            if ($("#redirect").html().length > 0)
+            {
+                window.location.replace($("#redirect").html());
+            }
+        });
+}
+
+</script>
+{% endblock %}
