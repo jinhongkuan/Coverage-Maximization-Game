@@ -64,7 +64,7 @@ def game_view(request):
                 AI_recipes = []
                 human_count = 1
                 for i in range(MAX_PLAYERS[MAP_NAMES.index(map_name)]-human_count):
-                    AI_recipes += [("BLLL(instance,1)",start_pos)]
+                    AI_recipes += [("Conscientious(instance,1,0.5)",start_pos)]
                 AI_recipes = json.dumps(AI_recipes)
                 human_positions = json.dumps([start_pos]*human_count)
                 new_game = Game.objects.create(AI_players=AI_recipes, position_assignment=human_positions, \

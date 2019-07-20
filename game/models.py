@@ -89,7 +89,7 @@ class Board(models.Model):
     name = models.TextField(null=False, default="")
     needs_refresh = models.TextField(null=False, default='{"admin":"True"}')
     locked = models.BooleanField(null=False, default=False)
-    grid_type = {'-1': "grey-grid", '0': "white-grid", '1': "black-grid", '2': "singly-covered-grid", '3': "doubly-covered-grid"}
+    grid_type = {'-1': "grey-grid", '0': "white-grid", '1': "black-grid", '2': "singly-covered-grid", '3': "doubly-covered-grid", '4': 'uncertain-grid'}
 
     parsed_history = []
     parsed_score_history = []
@@ -103,6 +103,7 @@ class Board(models.Model):
     neighbors = {}
     connected = {} # An alternate version of neighbors that include non-traversible tiles 
     covered_set = None
+    max_coverage_range = 0
 
 
     def play_history(self, stage):
@@ -167,6 +168,9 @@ class Board(models.Model):
         self.parsed_score_history = json.loads(self.score_history)
         if len(self.parsed_score_history) == 0:
             self.parsed_score_history += [self.getGlobalScore()]
+
+        for player in self.IP_Agent:
+            self.max_coverage_range = max(self.max_coverage_range, self.IP_Agent[player].coverage)
 
 
     def add_player(self, caller, row, col):
@@ -256,17 +260,25 @@ class Board(models.Model):
         return True
            
     def generateState(self, agent):
-        # TEMPORARY : Full vision 
         # Exclude agent's own contribution to covered set 
         covered_set = set()
+        repeated_set = []
+        visible_set = self.getCoveredSet((agent.r, agent.c), agent.sight, self.neighbors)
+        agents = {}
         for agent_ip in self.IP_Agent:
             other_agent = self.IP_Agent[agent_ip]
-            if agent is not other_agent:
-                covered_set = covered_set.union(self.getCoveredSet((other_agent.r, other_agent.c), other_agent.coverage, self.neighbors))
+            if (other_agent.r, other_agent.c) in visible_set:
+                reg = self.getCoveredSet((other_agent.r, other_agent.c), other_agent.coverage, self.neighbors)
+                covered_set = covered_set.union(reg)
+                repeated_set += list(reg)
+                agents[other_agent] = reg.intersection(visible_set)
+        for c in covered_set:
+            repeated_set.remove(c)
+        repeated_set = set(repeated_set)
+        covered_set = covered_set.intersection(visible_set)
+        repeated_set = repeated_set.intersection(visible_set)
 
-        visible_neighbors = self.getCoveredSet((agent.r, agent.c), agent.sight, self.neighbors)
-
-        return (self.neighbors, visible_neighbors, covered_set)
+        return (self.neighbors, agents)
 
     def attemptAction(self, callerIP, action, test=False):
         try:
@@ -347,28 +359,41 @@ class Board(models.Model):
         output = {}
         total_covered_set = set()
         repeated_covered_set = []
+        if caller == "admin":
+            visible_set = set([(x,y) for x in range(self.width) for y in range(self.height)])
+            certain_set = set([(x,y) for x in range(self.width) for y in range(self.height)])
+        else:
+            visible_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight, self.connected)
+            certain_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight - self.max_coverage_range, self.connected)
+
         for agent_ip in self.IP_Agent:
+            if (self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c) not in visible_set:
+                continue
             x = self.getCoveredSet((self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c), self.IP_Agent[agent_ip].coverage, self.neighbors)
             total_covered_set = total_covered_set.union(x)
             repeated_covered_set += list(x)
         for element in total_covered_set:
             repeated_covered_set.remove(element)
         repeated_covered_set = set(repeated_covered_set)
-        if caller == "admin":
-            visible_set = set([(x,y) for x in range(self.width) for y in range(self.height)])
-        else:
-            visible_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight, self.connected)
         for r in range(self.height):
             for c in range(self.width):
                 key = (r,c)
                 if key not in visible_set:
                     val = "-1"
                 else:
-                    val = self.grid[r][c]
-                    if (r,c) in repeated_covered_set:
-                        val = "3"
-                    elif (r,c) in total_covered_set:
-                        val = "2"
+                    if self.grid[r][c] == "0":
+                        if key in repeated_covered_set:
+                            val = "3"
+                        elif key in total_covered_set and key in certain_set:
+                            val = "2"
+                        elif key in total_covered_set and key not in certain_set:
+                            val = "2"
+                        elif key not in total_covered_set and key in certain_set:
+                            val = "0"
+                        elif key not in total_covered_set and key not in certain_set:
+                            val = "4"
+                    else:
+                        val = "1"
                 content = ""
                 for agent in self.IP_Agent:
                     if self.IP_Agent[agent].r == r and self.IP_Agent[agent].c == c and val != "-1":

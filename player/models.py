@@ -1,5 +1,5 @@
 from django.db import models
-from algorithms.models import Algorithm, BLLL
+from algorithms.models import Algorithm, BLLL, Conscientious
 
 class Player(models.Model):
     IP = models.CharField(max_length = 100, null=False)
