@@ -114,3 +114,65 @@ class Conscientious(Algorithm):
             pass 
 
         return json.dumps(action)
+
+class Explorer(Algorithm):
+    def __init__(self, agent, exploration_term, distance_discount):
+        super().__init__(agent)
+        self.name = "Explorer_" + str(agent.id)
+        self.exploration_term = exploration_term
+        self.distance_discount = distance_discount
+        self.memory = set()
+
+
+    def computeTileUtility(self, pos, neighbors):
+        util = 0
+        r, c = pos 
+        knowledge_radius = max([y[0] - r for y in self.memory.keys()] + [x[1] - c for x in self.memory.keys()])
+        util += 1/(1-self.distance_discount)*(self.distance_discount**(knowledge_radius+1))
+        accessible = Board.getCoveredSet(pos, knowledge_radius, neighbors)
+        accessible = self.memory.intersection(accessible)
+        for cell in accessible:
+            cell_r, cell_c = cell
+            dist = max([cell_r - r, cell_c - c])
+            weight = self.distance_discount**dist  
+            util += weight 
+        
+        return util 
+        
+
+    def computeNext(self, state):
+        neighbors, visible_agents = state 
+        covered = set()
+        repeated = []
+
+        for agent in visible_agents:
+            if agent is self.agent:
+                continue
+            territory = visible_agents[agent]
+            covered = covered.union(territory)
+            repeated += list(territory)
+        for c in covered:
+            repeated.remove(c)
+        
+        covered = covered.union()
+        repeated = set(repeated)
+
+        position = (self.agent.r, self.agent.c)
+        visible_tiles = Board.getCoveredSet(position, self.agent.sight, neighbors)
+        self.memory = self.memory.union(visible_tiles)
+
+        action = random.choice(neighbors[position])
+        covered_set_alpha = set([position] + neighbors[position])
+        marginal_covered_set_alpha = covered_set_alpha - covered
+        alpha_score = sum([self.computeTileUtility(x, neighbors) for x in marginal_covered_set_alpha])
+        covered_set_beta = set([action] + neighbors[action])
+        marginal_covered_set_beta = covered_set_beta - covered 
+        beta_score = sum([self.computeTileUtility(x, neighbors) for x in marginal_covered_set_beta])
+        alpha = math.exp(self.exploration_term*alpha_score)
+        beta = math.exp(self.exploration_term*beta_score)
+        if random.uniform(0,1) <= alpha/(alpha+beta):
+            action = position
+        else:
+            pass 
+
+        return json.dumps(action)

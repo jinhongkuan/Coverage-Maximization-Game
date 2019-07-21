@@ -35,5 +35,38 @@
             </tr>
             {% endfor %}
             </table>
+    <h3>Sequences:</h3><br>
+    <form method="POST">
+        {% csrf_token %}
+        <table>
+            <tr>
+                <th>id</th>
+                <th>name</th>
+                <th>players</th>
+                <th>specifications</th>
+                <th>actions</th>
+            </tr>
+        {% for row in sequence_table %}
+        <tr>
+        {% for cell in row %}
+        <td>{{cell}}</td>  
+        {% endfor %}
+        {% with row.0 as id %}
+        <td><a href='admin?test={{id}}'>Test</a> <a href='admin?del={{id}}'>X</a></td>
+        {% endwith %}
+        </tr>
+        {% endfor %}
+        <tr>
+            <td>*</td>
+            <td><input style="width:100%" name="add"></td>
+            <td><input style="width:100%" name="players"></td>
+            <td><input style="width:100%" name="data"></td>
+            <td><button type="submit">Add</button></td>
+        </tr>
+        </table>
+    </form>
+    
+    
+    
 </div>
 {% endblock %}

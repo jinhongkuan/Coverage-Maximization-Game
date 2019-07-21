@@ -4,8 +4,8 @@
 <div class="center-page">
 <p style="text-align: center">Round finished, please press the button below to continue to the next map:</p>
 <form action="game" method="POST">
-<input name="map_name" value={{map_name}} hidden>
-<input name="command" value="Start Session" hidden>
+<input name="game_id" value={{game_id}} hidden>
+<input name="command" value="Join Session" hidden>
 {% csrf_token %}
 <button type="submit">Submit</button>
 </form>

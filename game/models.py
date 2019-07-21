@@ -1,6 +1,5 @@
 from django.db import models
 from player.models import Player, Agent
-from covmax.constants import MAX_TURNS, MAP_NAMES
 from covmax.settings import STATIC_URL
 from django.core.exceptions import ObjectDoesNotExist
 import json 
@@ -8,12 +7,16 @@ import random
 from copy import copy, deepcopy 
 import os 
 from datetime import datetime
+import csv
+from covmax.settings import STATIC_ROOT
 # Create your models here.
 
 AI_MAX_ATTEMPT = 1000
 
 class Game(models.Model):
     ongoing = models.BooleanField(null=False, default=False)
+    max_turns = models.IntegerField(null=False, default=0)
+    seq_data = models.TextField(null=True, default="{}")
     AI_players = models.TextField(null=False, default="")
     human_players = models.TextField(null=False, default="[]")
     map_recipe = models.TextField(null=False, default="")
@@ -22,14 +25,15 @@ class Game(models.Model):
     start_time = models.DateTimeField(null=True)
     parsed_human_players = [] 
     parsed_position_assignment = [] 
-    
+    parsed_seq_data = {}
+
     def initialize(self):
         print(self.human_players)
         self.parsed_human_players = json.loads(self.human_players)
         self.parsed_position_assignment = json.loads(self.position_assignment)
-        
+        self.parsed_seq_data = json.loads(self.seq_data)
 
-    def make_board(self, load_map, map_name):
+    def make_board(self, load_map, map_name, fresh):
 
         # Only accept rectangular maps
         assert([len(row) == len(load_map[0]) for row in load_map])
@@ -41,39 +45,55 @@ class Game(models.Model):
 
         # Create AI players
         parsed_AI_players = json.loads(self.AI_players)
+        
         for recipe in parsed_AI_players:
-            game_board.addAI(recipe[0],recipe[1][0], recipe[1][1])
+            game_board.addAI(recipe[0],recipe[1][0], recipe[1][1], fresh)
         self.board_id = game_board.id
         self.saveState() 
 
+        
     def add_player(self, player):
-        print("add player called by " + str(player))
         if len(self.parsed_human_players) == len(self.parsed_position_assignment):
             print("Error joining, game is full")
-            print(self.parsed_human_players)
-            print(self.parsed_position_assignment)
             self.ongoing = True 
             return False
 
+        if player in self.parsed_human_players:
+            return False 
+        
+        acceptable_players = [x[0] for x in self.parsed_position_assignment]
+        if player.IP in acceptable_players:
+            ind = acceptable_players.index(player.IP)
+            
+        elif "player" in acceptable_players:
+            ind = acceptable_players.index("player")
+
+        else:
+            print("player has no place here")
+            return False 
+
         try:
             board = Board.objects.get(id=self.board_id)
-            board.add_player(player,self.parsed_position_assignment[len(self.parsed_human_players)][0], \
-                self.parsed_position_assignment[len(self.parsed_human_players)][1]) 
-            self.parsed_human_players += [player.IP]
-            if len(self.parsed_human_players) == len(self.parsed_position_assignment):
-                self.ongoing = True
-                self.start_time = datetime.now()
-
         except ObjectDoesNotExist:
             print("Error, trying to add player to non-existent board")
             return False
+        
+        pos = self.parsed_position_assignment[ind][1]
+        board.add_player(player,pos[0],pos[1]) 
+        self.parsed_human_players += [player.IP]
+
+        if len(self.parsed_human_players) == len(self.parsed_position_assignment):
+            self.ongoing = True
+            self.parsed_seq_data["players"] = list(board.parsed_pending.keys())
+            self.start_time = datetime.now()
 
         player.game_id = self.id 
+        player.all_game_ids += str(self.id) + ","
         player.save()
         self.saveState()
 
     def saveState(self):
-
+        self.seq_data = json.dumps(self.parsed_seq_data)
         self.human_players = json.dumps(self.parsed_human_players)
         self.position_assignment = json.dumps(self.parsed_position_assignment)
         self.save()
@@ -184,12 +204,19 @@ class Board(models.Model):
         self.parsed_needs_refresh[caller.IP] = "False"
         self.saveState()
 
-    def addAI(self, recipe, row, col):
+    def addAI(self, recipe, row, col, fresh):
         # An AI is controlled by the algo_instance of an agent
         if True: # Assumes that AI do not attempt to join games themselves
-            new_agent = Agent.objects.create(r=row,c=col,token="tokens/token" + str(random.randint(0,99)) + ".png", algorithm=recipe)
-            new_agent.save()
-            agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
+            if fresh:
+                new_agent = Agent.objects.create(r=row,c=col,token="tokens/token" + str(random.randint(0,99)) + ".png", algorithm=recipe)
+                new_agent.save()
+                agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
+            else:
+                old_agent = Agent.objects.get(id=recipe)
+                new_agent = Agent.objects.create(r=row,c=col,token=old_agent.token, algorithm=old_agent.algorithm)
+                new_agent.save()
+                agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
+            
             self.parsed_pending[agent_name] = None 
             self.IP_Agent[agent_name] = new_agent 
         print("AI " + str(agent_name) + " has joined the board")
@@ -199,10 +226,7 @@ class Board(models.Model):
         # Temporary fix for None id problem
         self.locked = True 
         self.save()
-        print(self.IP_Agent)
-        print(self.parsed_pending)
         for agent_ip in self.IP_Agent:
-            print(agent_ip)
             if self.IP_Agent[agent_ip].algo_instance is not None and self.parsed_pending[agent_ip] is None:
                 exceed_limit = True
                 for i in range(AI_MAX_ATTEMPT):
@@ -219,17 +243,25 @@ class Board(models.Model):
         self.save()
 
     def handleTurn(self, caller, action, force_next=False):
-        
-        if not Game.objects.get(id=caller.game_id).ongoing:
+        redirect = ""
+        my_game = Game.objects.get(id=self.game_id)
+        should_continue = True
+        if not my_game.ongoing:
             print("Game has yet to be started")
             return True 
 
-        self.updateAI()
-        if caller.IP not in self.parsed_pending:
-            print("Error, player not supposed to be playing on this board")
-            return True
-        if not force_next and self.attemptAction(caller.IP, action, test=True):
-            self.parsed_pending[caller.IP] = action
+        # HACK - bug fix
+        if None in self.parsed_pending.values():
+            self.updateAI()
+        
+        
+        if caller != "admin":
+            if caller.IP not in self.parsed_pending:
+                print("Error, player not supposed to be playing on this board")
+                return True
+            if not force_next and self.attemptAction(caller.IP, action, test=True):
+                self.parsed_pending[caller.IP] = action
+
         all_done = True
         for player in self.parsed_pending:
             if self.parsed_pending[player] == None or self.parsed_pending[player] == "null":
@@ -251,13 +283,47 @@ class Board(models.Model):
             self.saveState()
 
             # Determine if game has ended
-            map_index = MAP_NAMES.index(self.getName(True))
-            if len(self.parsed_history) >= MAX_TURNS[map_index]:
+            seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
+            if len(self.parsed_history) >= seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
                 # Move user to next game 
-                return False 
+                # Create the next game
+                seq_data = my_game.parsed_seq_data
+                seq = Sequence.objects.get(id=seq_data["id"])
+                new_index = seq_data["index"]+1
+                if new_index >= len(seq.parsed_data):
+                    redirect = "end"
+                else:
+                    map_info = seq.parsed_data[new_index] 
+                    players = seq_data["players"]
+                    new_game, msg = _create_game(map_info[0],map_info[1],players, False)
+                    if new_game is None:
+                        redirect = "error"
+                    else:
+                        new_game.parsed_seq_data["id"] = seq_data["id"]
+                        new_game.parsed_seq_data["index"] = new_index
+                        new_game.saveState()
+                        redirect = "end_round?game_id=" + str(new_game.id) 
+                        att_again = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
+                        if att_again != "":
+                            redirect = att_again
+                for player_ in self.parsed_needs_refresh:
+                    self.parsed_needs_refresh[player_] = redirect
+                return redirect 
             # AI turn
+
             self.updateAI()
-        return True
+
+            # Check if this is an all-bot game
+            all_done = True
+            for player in self.parsed_pending:
+                if self.parsed_pending[player] == None or self.parsed_pending[player] == "null":
+                    all_done = False
+                    break 
+
+            if all_done:
+                redirect = self.handleTurn(caller, action, False)
+            
+        return redirect
            
     def generateState(self, agent):
         # Exclude agent's own contribution to covered set 
@@ -346,14 +412,15 @@ class Board(models.Model):
         # Assumes this is a human player
         callerIP = caller.IP  
         output = ""
-        print(Game.objects.get(id=self.game_id).ongoing)
         if not Game.objects.get(id=self.game_id).ongoing:
             output += "Waiting for more player(s).."
         elif self.parsed_pending[callerIP] is None:
             output += "Your Turn"
         else:
             output += "Waiting for other player(s).."
-        output += "<br>(" + str(MAX_TURNS[MAP_NAMES.index(self.getName(True))] - len(self.parsed_history)) + " turns remaining)"
+        my_game = Game.objects.get(id=self.game_id)
+        seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
+        output += "<br>(" + str(int(seq.parsed_data[my_game.parsed_seq_data["index"]][1]) - len(self.parsed_history)) + " turns remaining)"
         return output 
         
     def getDisplayCells(self, caller):
@@ -429,11 +496,80 @@ class Board(models.Model):
         self.agents = json.dumps(parsed_agents)
         self.save()
 
+class Sequence(models.Model):
+    name = models.TextField(null=False)
+    players = models.TextField(null=True, default='[]')
+    data = models.TextField(null=True, default='[]')
+    parsed_data = None 
+    parsed_players = None
+
+    def initialize(self):
+        self.parsed_data = json.loads(self.data)
+        self.parsed_players = json.loads(self.players)
+
 def initialize_board(instance, **kwargs):
     instance.initialize()
 
 def initialize_game(instance, **kwargs):
     instance.initialize()
 
+def initialize_sequence(instance, **kwargs):
+    instance.initialize()
+
 models.signals.post_init.connect(initialize_board, Board)    
 models.signals.post_init.connect(initialize_game, Game)
+models.signals.post_init.connect(initialize_sequence, Sequence)
+
+def _create_game(map_name, turns_limit, player,  fresh=True):
+    read_map = []
+    start_pos = []
+    with open(os.path.join(STATIC_ROOT, map_name)) as map_file:
+        reader = csv.reader(map_file, delimiter=',')
+        for row in reader:
+            r = len(read_map)
+            for c in range(len(row)):
+                if "*" in row[c]:
+                    row[c] = row[c].replace('*','')
+                    start_pos += [(r,c)]
+            read_map += [row]
+
+    if len(start_pos) == 0:
+        return (None, "Map does not indicate start locations") 
+    elif len(start_pos) != 1 and len(start_pos) != len(player):
+        return (None, "Number of start locations does not match number of players") 
+    elif len(start_pos) == 1:
+        start_pos = [start_pos[0]]*len(player)
+    # TEMP - Placeholder for future admin-controlled bot assignment
+    if fresh:
+        AI_recipes = list(filter(lambda x:x!="player", player))
+        human_players = list(filter(lambda x:x=="player", player))
+        for i in range(len(AI_recipes)):
+            pos_index = random.randint(0, len(start_pos)-1)
+            AI_recipes[i] = (AI_recipes[i], start_pos[pos_index])
+            del start_pos[pos_index]
+        for i in range(len(human_players)):
+            pos_index = random.randint(0, len(start_pos)-1)
+            human_players[i] = (human_players[i], start_pos[pos_index])
+            del start_pos[pos_index]
+    else:
+        AI_recipes = list(filter(lambda x:"_" in x, player))
+        human_players = list(filter(lambda x:"_" not in x, player))
+        for i in range(len(AI_recipes)):
+            pos_index = random.randint(0, len(start_pos)-1)
+            AI_recipes[i] = (AI_recipes[i].split('_')[1], start_pos[pos_index])
+            del start_pos[pos_index]
+        for i in range(len(human_players)):
+            pos_index = random.randint(0, len(start_pos)-1)
+            human_players[i] = (human_players[i], start_pos[pos_index])
+            del start_pos[pos_index]
+
+    new_game = Game.objects.create(AI_players=json.dumps(AI_recipes), position_assignment=json.dumps(human_players), \
+            map_recipe=json.dumps(read_map), max_turns=turns_limit)
+    print("Created new game(" + str(new_game.id) + ")")
+    
+    # new_game.saveState()
+    new_game.make_board(read_map, map_name.split(".")[0], fresh)
+    if len(human_players) == 0:
+        new_game.ongoing = True
+        new_game.parsed_seq_data["players"]=list(Board.objects.get(id=new_game.board_id).parsed_pending.keys())
+    return (new_game, "")
