@@ -317,6 +317,7 @@ class Board(models.Model):
         agent.c = original_c
         return False
     
+    @classmethod
     def getCoveredSet(self, position, extension, neighbors):
         covered_set = set()
         last_iter = set([position])
