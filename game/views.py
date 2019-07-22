@@ -27,8 +27,6 @@ def game_view(request):
         player = Player.objects.create(IP=ip,active=True)
         print("Created new player with ip " + str(player.IP))
 
-    print("Connection from " + str(ip))
-
     if "command" in request.POST:
         if request.POST["command"] == "Start Session":
             # Check if there are other on-going games
@@ -56,7 +54,6 @@ def game_view(request):
 
             else:
                 # TEMP - Pick the oldest open game
-                print("Found other open games")
                 game = open_games[0]
                 parsed_pending = json.loads(Board.objects.get(id=game.board_id).pending)
                 game.add_player(player)                    
@@ -109,7 +106,6 @@ def board_view(request):
             player = Player.objects.get(IP=ip)
         except ObjectDoesNotExist:
             player = Player.objects.create(IP=ip,active=True)
-            print("Created new player with IP " + str(ip))
 
         # Obtain player Game & Board
         if player.game_id == -1:
@@ -126,7 +122,10 @@ def board_view(request):
             if "admin" in request.GET:
                 return HttpResponse(player_board.parsed_needs_refresh["admin"])
             else:
-                return HttpResponse(player_board.parsed_needs_refresh[player.IP] if player.IP in player_board.parsed_needs_refresh else "False")
+                print(player_board.parsed_needs_refresh)
+                resp = player_board.parsed_needs_refresh[player.IP] if player.IP in player_board.parsed_needs_refresh else "False"
+                print("Poll Response: " + str(resp))
+                return HttpResponse(resp)
         # Respond to input requests
         redirect = "" 
         if "click_data" in request.POST:
@@ -185,7 +184,6 @@ def admin_view(request):
                 new_game.saveState()
             # Resolve all-bot games 
             fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
-            print("res=" + str(fin))
             if fin == "end":
                 # Successful resolution
                 pass
@@ -235,7 +233,6 @@ def graph_view(request):
     if "game_id" in request.POST:
         player_board = Board.objects.get(id=Game.objects.get(id=request.POST["game_id"]).board_id)
         score_history = player_board.parsed_score_history
-        print(score_history)
         fig = go.Figure(data=[go.Scatter(y=score_history)])
         fig.update_layout(height=600,xaxis=go.layout.XAxis(
         title=go.layout.xaxis.Title(

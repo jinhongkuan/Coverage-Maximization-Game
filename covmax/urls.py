@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from game.models import start_timer
 from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,3 +27,5 @@ urlpatterns = [
     path('graph', graph_view, name='graph'),
     path('end_round', end_round_view, name='end round')
 ]
+
+start_timer()

@@ -16,11 +16,15 @@ class Algorithm():
      
 
 class BLLL(Algorithm):
-    def __init__(self, agent, exploration_term):
+    def __init__(self, agent, exploration_term, poisson_rate):
         super().__init__(agent)
         self.name = "BLLL_" + str(agent.id)
         self.exploration_term = exploration_term
+        self.poisson_rate = poisson_rate
 
+    @classmethod 
+    def poisson(cls, rate, duration):
+        return 1 - math.exp(-rate*duration)
 
     def computeNext(self, state):
         neighbors, visible_agents = state 
@@ -40,6 +44,10 @@ class BLLL(Algorithm):
         repeated = set(repeated)
 
         position = (self.agent.r, self.agent.c)
+
+        if random.random() > BLLL.poisson(self.poisson_rate, 1):
+            return json.dumps(position)
+
         action = random.choice(neighbors[position])
         covered_set_alpha = set([position] + neighbors[position])
         marginal_covered_set_alpha = covered_set_alpha - covered 
@@ -176,3 +184,4 @@ class Explorer(Algorithm):
             pass 
 
         return json.dumps(action)
+

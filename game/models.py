@@ -6,9 +6,11 @@ import json
 import random
 from copy import copy, deepcopy 
 import os 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import csv
 from covmax.settings import STATIC_ROOT
+from covmax.constants import TURN_TIMER
+import threading
 # Create your models here.
 
 AI_MAX_ATTEMPT = 1000
@@ -26,9 +28,16 @@ class Game(models.Model):
     parsed_human_players = [] 
     parsed_position_assignment = [] 
     parsed_seq_data = {}
+    
+    @classmethod 
+    def hasTimer(cls):
+        if hasattr(cls, "timer"):
+            return True
+        else:
+            cls.timer = "timer"
+            return False
 
     def initialize(self):
-        print(self.human_players)
         self.parsed_human_players = json.loads(self.human_players)
         self.parsed_position_assignment = json.loads(self.position_assignment)
         self.parsed_seq_data = json.loads(self.seq_data)
@@ -55,7 +64,6 @@ class Game(models.Model):
     def add_player(self, player):
         if len(self.parsed_human_players) == len(self.parsed_position_assignment):
             print("Error joining, game is full")
-            self.ongoing = True 
             return False
 
         if player in self.parsed_human_players:
@@ -84,8 +92,9 @@ class Game(models.Model):
 
         if len(self.parsed_human_players) == len(self.parsed_position_assignment):
             self.ongoing = True
+            print("set ongoing to true 2 ")
             self.parsed_seq_data["players"] = list(board.parsed_pending.keys())
-            self.start_time = datetime.now()
+            self.start_time = datetime.now(timezone.utc)
 
         player.game_id = self.id 
         player.all_game_ids += str(self.id) + ","
@@ -248,7 +257,7 @@ class Board(models.Model):
         should_continue = True
         if not my_game.ongoing:
             print("Game has yet to be started")
-            return True 
+            return "" 
 
         # HACK - bug fix
         if None in self.parsed_pending.values():
@@ -258,7 +267,7 @@ class Board(models.Model):
         if caller != "admin":
             if caller.IP not in self.parsed_pending:
                 print("Error, player not supposed to be playing on this board")
-                return True
+                return ""
             if not force_next and self.attemptAction(caller.IP, action, test=True):
                 self.parsed_pending[caller.IP] = action
 
@@ -269,24 +278,31 @@ class Board(models.Model):
                 print(player + " has not finished")
                 break 
         all_done = all_done or force_next
-        if all_done:
+        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled and action=="tick"):
             # Execute all pending actions
             for player in self.parsed_pending:
                 if self.parsed_pending[player] is not None:
                     self.attemptAction(player, self.parsed_pending[player], test=False)
                 self.parsed_pending[player] = None
             for player in self.parsed_needs_refresh:
-                self.parsed_needs_refresh[player] = "True"
+                if self.parsed_needs_refresh[player] == "False":
+                    print("set " + player + " to true")
+                    self.parsed_needs_refresh[player] = "True"
             # Commit all actions 
-            self.parsed_history += [deepcopy(self.grid)]
+            self.parsed_history = [None] * len(self.parsed_history) + [deepcopy(self.grid)]
             self.parsed_score_history += [self.getGlobalScore()]
             self.saveState()
 
             # Determine if game has ended
             seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
-            if len(self.parsed_history) >= seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
+            if len(self.parsed_history) > seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
                 # Move user to next game 
                 # Create the next game
+                my_game = Game.objects.get(id=self.game_id) 
+                my_game.ongoing = False
+                print("set ongoing to false for " + str(self.game_id))
+                my_game.save()
+                print(str(Game.objects.get(id=self.game_id).ongoing))
                 seq_data = my_game.parsed_seq_data
                 seq = Sequence.objects.get(id=seq_data["id"])
                 new_index = seq_data["index"]+1
@@ -308,6 +324,8 @@ class Board(models.Model):
                             redirect = att_again
                 for player_ in self.parsed_needs_refresh:
                     self.parsed_needs_refresh[player_] = redirect
+                print(self.parsed_needs_refresh)
+                self.saveState()
                 return redirect 
             # AI turn
 
@@ -570,6 +588,36 @@ def _create_game(map_name, turns_limit, player,  fresh=True):
     # new_game.saveState()
     new_game.make_board(read_map, map_name.split(".")[0], fresh)
     if len(human_players) == 0:
+        print("set ongoing to true")
         new_game.ongoing = True
         new_game.parsed_seq_data["players"]=list(Board.objects.get(id=new_game.board_id).parsed_pending.keys())
     return (new_game, "")
+
+class Config(models.Model):
+    timer_enabled = models.BooleanField(null=False,default=False)
+    main = models.BooleanField(null=False,default=False)
+    
+
+def async_timer(timer_stop):
+    ongoing_games = Game.objects.filter(ongoing=True)
+
+    for game in ongoing_games:
+        print(str(game.id) + " is ongoing")
+        if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
+            print("tick")
+            resp = Board.objects.get(id=game.board_id).handleTurn("admin", "tick")
+            if resp != "":
+                game.ongoing = False
+            game.start_time = datetime.now(timezone.utc)
+            game.save()
+    if not timer_stop.is_set():
+        threading.Timer(1, async_timer, [timer_stop]).start()
+
+
+def start_timer():
+    if Config.objects.get(main=True).timer_enabled:
+        timer_stop = threading.Event()
+        print("start timer")
+        print(threading.active_count())
+        async_timer(timer_stop)
+            
