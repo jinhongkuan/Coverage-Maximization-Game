@@ -28,4 +28,4 @@ urlpatterns = [
     path('end_round', end_round_view, name='end round')
 ]
 
-start_timer()
+# start_timer()

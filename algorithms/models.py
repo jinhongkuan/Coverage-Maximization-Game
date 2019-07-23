@@ -2,6 +2,7 @@ from django.db import models
 import random 
 import json
 import math 
+
 # Create your models here.
 
 # These are vanilla classes
@@ -27,7 +28,7 @@ class BLLL(Algorithm):
         return 1 - math.exp(-rate*duration)
 
     def computeNext(self, state):
-        neighbors, visible_agents = state 
+        neighbors, connected, visible_agents = state 
         covered = set()
         repeated = []
 
@@ -70,7 +71,7 @@ class Conscientious(Algorithm):
         self.consc_term = consc_term
 
     def computeNext(self, state):
-        neighbors, visible_agents = state 
+        neighbors, connected, visible_agents = state 
         covered = set()
         repeated = []
         jerk = self.agent
@@ -124,32 +125,51 @@ class Conscientious(Algorithm):
         return json.dumps(action)
 
 class Explorer(Algorithm):
-    def __init__(self, agent, exploration_term, distance_discount):
+    def __init__(self, agent, exploration_term, poisson,  distance_discount):
         super().__init__(agent)
         self.name = "Explorer_" + str(agent.id)
         self.exploration_term = exploration_term
         self.distance_discount = distance_discount
-        self.memory = set()
+        self.poisson_rate = poisson
 
-
-    def computeTileUtility(self, pos, neighbors):
-        util = 0
-        r, c = pos 
-        knowledge_radius = max([y[0] - r for y in self.memory.keys()] + [x[1] - c for x in self.memory.keys()])
-        util += 1/(1-self.distance_discount)*(self.distance_discount**(knowledge_radius+1))
-        accessible = Board.getCoveredSet(pos, knowledge_radius, neighbors)
-        accessible = self.memory.intersection(accessible)
-        for cell in accessible:
-            cell_r, cell_c = cell
-            dist = max([cell_r - r, cell_c - c])
-            weight = self.distance_discount**dist  
-            util += weight 
+    def computeTileUtility(self, pos, neighbors, obstacles, distance_discount):
+        if pos in obstacles:
+            return 0
+        CAP = 6 
+        last_layer = set([pos])
+        considered = set([pos])
+        frequency = {}
+        possible_paths = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]]
+        for i in range(CAP):
+            current_layer = set()
+            for c in last_layer:
+                new_c = set([(x[0] + c[0], x[1] + c[1]) for x in possible_paths])
+                new_c = new_c.difference(obstacles)
+                current_layer = current_layer.union(new_c.difference(considered))
+                considered = considered.union(new_c)
+            frequency[i+1] = len(current_layer)
+            last_layer = current_layer
         
+        util = sum([frequency[key] * distance_discount**key for key in frequency])
         return util 
-        
+    def getCoveredSet(self, position, extension, neighbors):
+        covered_set = set()
+        last_iter = set([position])
+        covered_set = covered_set.union(last_iter)
+        for i in range(extension):
+            this_iter = set()
+            if len(last_iter) == 0:
+                break 
+            for cell in last_iter:
+                for neighbor in neighbors[cell]:
+                    if neighbor not in covered_set:
+                        this_iter.add(neighbor)
+                        covered_set.add(neighbor)
+            last_iter = this_iter
+        return covered_set
 
     def computeNext(self, state):
-        neighbors, visible_agents = state 
+        neighbors, connected, visible_agents = state 
         covered = set()
         repeated = []
 
@@ -166,16 +186,23 @@ class Explorer(Algorithm):
         repeated = set(repeated)
 
         position = (self.agent.r, self.agent.c)
-        visible_tiles = Board.getCoveredSet(position, self.agent.sight, neighbors)
-        self.memory = self.memory.union(visible_tiles)
-
+        if random.random() > BLLL.poisson(self.poisson_rate, 1):
+            return json.dumps(position)
+        visible_tiles = self.getCoveredSet(position, self.agent.sight, neighbors)
+        connected_tiles = self.getCoveredSet(position, self.agent.sight, connected)
+        visible_walls = visible_tiles - connected_tiles
+        parsed_memory = set(self.agent.parsed_memory)
+        parsed_memory = parsed_memory.union(visible_walls)
+        self.agent.parsed_memory =  list(parsed_memory)
+        self.agent.saveState()
+        visible_walls = parsed_memory
         action = random.choice(neighbors[position])
         covered_set_alpha = set([position] + neighbors[position])
         marginal_covered_set_alpha = covered_set_alpha - covered
-        alpha_score = sum([self.computeTileUtility(x, neighbors) for x in marginal_covered_set_alpha])
+        alpha_score = sum([self.computeTileUtility(x, neighbors, visible_walls, self.distance_discount) for x in marginal_covered_set_alpha])
         covered_set_beta = set([action] + neighbors[action])
         marginal_covered_set_beta = covered_set_beta - covered 
-        beta_score = sum([self.computeTileUtility(x, neighbors) for x in marginal_covered_set_beta])
+        beta_score = sum([self.computeTileUtility(x, neighbors, visible_walls, self.distance_discount) for x in marginal_covered_set_beta])
         alpha = math.exp(self.exploration_term*alpha_score)
         beta = math.exp(self.exploration_term*beta_score)
         if random.uniform(0,1) <= alpha/(alpha+beta):

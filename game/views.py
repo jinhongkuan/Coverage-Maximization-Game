@@ -29,8 +29,8 @@ def game_view(request):
 
     if "command" in request.POST:
         if request.POST["command"] == "Start Session":
-            # Check if there are other on-going games
-            open_games = Game.objects.filter(ongoing=False)
+            # Check if there are other available games
+            open_games = Game.objects.filter(available=True)
 
             # Remove games initiated by this player
             open_games = [x for x in open_games if ip not in Board.objects.get(id=x.board_id).parsed_pending]
@@ -132,6 +132,10 @@ def board_view(request):
             click_data = request.POST["click_data"]
             click_data = eval(click_data)
             redirect = player_board.handleTurn(player, json.dumps(click_data))
+            if redirect == "continue":
+                raise Exception # Not supposed to auto-resolve when there are players 
+            elif redirect == "break":
+                redirect = ""
                     
 
         view_context = {
@@ -182,11 +186,19 @@ def admin_view(request):
                 new_game.parsed_seq_data["id"] = seq.id
                 new_game.parsed_seq_data["index"] = new_index
                 new_game.saveState()
-            # Resolve all-bot games 
+
+            # Resolve all-bot games
             fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
-            if fin == "end":
-                # Successful resolution
-                pass
+            current_id = new_game.board_id
+            while True: 
+                if fin == "continue":
+                    fin = Board.objects.get(id=current_id).handleTurn("admin","test")
+                    continue
+                elif fin == "break" or fin == "end":
+                    break 
+                else:
+                    current_id = int(fin.split('=')[1])
+                    fin = Board.objects.get(id=current_id).handleTurn("admin","test")
 
         
 

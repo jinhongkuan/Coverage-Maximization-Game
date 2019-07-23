@@ -16,6 +16,7 @@ import threading
 AI_MAX_ATTEMPT = 1000
 
 class Game(models.Model):
+    available = models.BooleanField(null=False, default=True)
     ongoing = models.BooleanField(null=False, default=False)
     max_turns = models.IntegerField(null=False, default=0)
     seq_data = models.TextField(null=True, default="{}")
@@ -92,7 +93,7 @@ class Game(models.Model):
 
         if len(self.parsed_human_players) == len(self.parsed_position_assignment):
             self.ongoing = True
-            print("set ongoing to true 2 ")
+            self.available = False 
             self.parsed_seq_data["players"] = list(board.parsed_pending.keys())
             self.start_time = datetime.now(timezone.utc)
 
@@ -257,7 +258,7 @@ class Board(models.Model):
         should_continue = True
         if not my_game.ongoing:
             print("Game has yet to be started")
-            return "" 
+            return "break" 
 
         # HACK - bug fix
         if None in self.parsed_pending.values():
@@ -300,9 +301,7 @@ class Board(models.Model):
                 # Create the next game
                 my_game = Game.objects.get(id=self.game_id) 
                 my_game.ongoing = False
-                print("set ongoing to false for " + str(self.game_id))
                 my_game.save()
-                print(str(Game.objects.get(id=self.game_id).ongoing))
                 seq_data = my_game.parsed_seq_data
                 seq = Sequence.objects.get(id=seq_data["id"])
                 new_index = seq_data["index"]+1
@@ -319,12 +318,8 @@ class Board(models.Model):
                         new_game.parsed_seq_data["index"] = new_index
                         new_game.saveState()
                         redirect = "end_round?game_id=" + str(new_game.id) 
-                        att_again = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
-                        if att_again != "":
-                            redirect = att_again
                 for player_ in self.parsed_needs_refresh:
                     self.parsed_needs_refresh[player_] = redirect
-                print(self.parsed_needs_refresh)
                 self.saveState()
                 return redirect 
             # AI turn
@@ -339,7 +334,7 @@ class Board(models.Model):
                     break 
 
             if all_done:
-                redirect = self.handleTurn(caller, action, False)
+                redirect = "continue"
             
         return redirect
            
@@ -362,7 +357,7 @@ class Board(models.Model):
         covered_set = covered_set.intersection(visible_set)
         repeated_set = repeated_set.intersection(visible_set)
 
-        return (self.neighbors, agents)
+        return (self.neighbors, self.connected, agents)
 
     def attemptAction(self, callerIP, action, test=False):
         try:
@@ -424,6 +419,7 @@ class Board(models.Model):
     def getMessage(self, caller):
         if caller == "admin":
             message = "You are currently spectating the game as an admin"
+            # message += "<br>Average Score: " + str(sum(self.score_history)/float(len(self.score_history)))
             for player in self.IP_Agent:
                 message += "<br>" + player + ": " + "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[player].token) + "' style='position: relative; z-index:1'>"
             return message
@@ -446,8 +442,8 @@ class Board(models.Model):
         total_covered_set = set()
         repeated_covered_set = []
         if caller == "admin":
-            visible_set = set([(x,y) for x in range(self.width) for y in range(self.height)])
-            certain_set = set([(x,y) for x in range(self.width) for y in range(self.height)])
+            visible_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
+            certain_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
         else:
             visible_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight, self.connected)
             certain_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight - self.max_coverage_range, self.connected)
@@ -590,6 +586,7 @@ def _create_game(map_name, turns_limit, player,  fresh=True):
     if len(human_players) == 0:
         print("set ongoing to true")
         new_game.ongoing = True
+        new_game.available = False
         new_game.parsed_seq_data["players"]=list(Board.objects.get(id=new_game.board_id).parsed_pending.keys())
     return (new_game, "")
 
@@ -606,7 +603,7 @@ def async_timer(timer_stop):
         if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
             print("tick")
             resp = Board.objects.get(id=game.board_id).handleTurn("admin", "tick")
-            if resp != "":
+            if resp != "break" and resp != "continue":
                 game.ongoing = False
             game.start_time = datetime.now(timezone.utc)
             game.save()
