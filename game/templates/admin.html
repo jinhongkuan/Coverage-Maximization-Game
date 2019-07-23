@@ -25,6 +25,7 @@
                 <th>map</th>
                 <th>players</th>
                 <th>turns</th>
+                <th>options</th>
             </tr>
             {% for row in game_table %}
             
@@ -65,6 +66,17 @@
         </tr>
         </table>
     </form>
+    <h3>Configurations</h3>
+    {% with config_table.timer_enabled_true as timer_enabled_true %}
+    {% with config_table.timer_enabled_false as timer_enabled_false %}
+    <form method="POST">
+        {% csrf_token %}
+        <input type="radio" name="timer_enabled" value="true" {{timer_enabled_true}}>Enable Timer<br>
+        <input type="radio" name="timer_enabled" value="false" {{timer_enabled_false}}>Disable Timer<br>
+        <button type="submit" name="modify_config">Save Changes</button>
+    </form>
+    {% endwith %}
+    {% endwith %}
     
     
     

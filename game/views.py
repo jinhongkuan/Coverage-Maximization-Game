@@ -4,9 +4,9 @@ import random
 from ipware import get_client_ip
 from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from player.models import Player
-from game.models import Board, Game, Sequence, _create_game
+from game.models import Board, Game, Sequence, Config, _create_game
 import csv
 from covmax.settings import STATIC_ROOT
 import PIL, PIL.Image
@@ -33,7 +33,8 @@ def game_view(request):
             open_games = Game.objects.filter(available=True)
 
             # Remove games initiated by this player
-            open_games = [x for x in open_games if ip not in Board.objects.get(id=x.board_id).parsed_pending]
+            
+            open_games = [x for x in open_games if len(Board.objects.filter(id=x.board_id)) == 1 and ip not in Board.objects.get(id=x.board_id).parsed_pending]
 
             if len(open_games) == 0:
                 default_seq_name= "seq0"
@@ -156,18 +157,28 @@ def make_href(text, link):
     return "<a href='" + str(link) + "'>" + str(text) + "</a>"
 
 def admin_view(request):
+    print("view ")
     player_table = []
     sequence_table = []
     game_table = []
+    configuration_table = {}
     message = ""
     redirect_url = "adminview?game_id="
-
     if "del" in request.GET:
         id_to_remove = request.GET["del"]
         try:
             Sequence.objects.get(id=id_to_remove).delete() 
-        except:
-            pass
+            return HttpResponseRedirect("admin")
+        except Exception as e:
+            print(str(e))
+
+    if "game_del" in request.GET:
+        id_to_remove = request.GET["game_del"]
+        try:
+            Game.objects.get(id=id_to_remove).delete() 
+            return HttpResponseRedirect("admin")
+        except Exception as e:
+            print(str(e))
 
     if "test" in request.GET:
         id_to_test = request.GET["test"]
@@ -222,14 +233,25 @@ def admin_view(request):
         try:
             corresponding_board = Board.objects.get(id=game.board_id)
             game_table += [[]]
-            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), len(corresponding_board.parsed_history)]
+            AI_Players = json.loads(game.AI_players)
+            extracted_AI_Players = [] 
+            for ai in AI_Players:
+                extracted_AI_Players += [ai[0]]
+            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(extracted_AI_Players), make_href("X", "admin?game_del="+str(game.id))]
         except ObjectDoesNotExist:
             pass
+    main_config = Config.objects.get(main=True)
+    if "modify_config" in request.POST:
+        main_config.timer_enabled = True if request.POST["timer_enabled"]=='true' else False
+        main_config.save()
 
+    configuration_table['timer_enabled_true'] = 'checked' if main_config.timer_enabled else ''
+    configuration_table['timer_enabled_false'] = 'checked' if not main_config.timer_enabled else ''
     view_context = {
         "player_table" : player_table,
         "game_table" : game_table,
         "sequence_table" : sequence_table,
+        "config_table" : configuration_table,
         "message" : message
     }
 

@@ -39,6 +39,8 @@ class Game(models.Model):
             return False
 
     def initialize(self):
+        if self.start_time == None:
+            self.start_time = datetime.now(timezone.utc)
         self.parsed_human_players = json.loads(self.human_players)
         self.parsed_position_assignment = json.loads(self.position_assignment)
         self.parsed_seq_data = json.loads(self.seq_data)
@@ -96,6 +98,7 @@ class Game(models.Model):
             self.available = False 
             self.parsed_seq_data["players"] = list(board.parsed_pending.keys())
             self.start_time = datetime.now(timezone.utc)
+            self.save()
 
         player.game_id = self.id 
         player.all_game_ids += str(self.id) + ","
@@ -419,14 +422,15 @@ class Board(models.Model):
     def getMessage(self, caller):
         if caller == "admin":
             message = "You are currently spectating the game as an admin"
-            # message += "<br>Average Score: " + str(sum(self.score_history)/float(len(self.score_history)))
+
+            message += "<br>Average Score: " + str(round(sum(self.parsed_score_history)/float(len(self.parsed_score_history)), 2))
             for player in self.IP_Agent:
                 message += "<br>" + player + ": " + "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[player].token) + "' style='position: relative; z-index:1'>"
             return message
         # Assumes this is a human player
         callerIP = caller.IP  
         output = ""
-        if not Game.objects.get(id=self.game_id).ongoing:
+        if Game.objects.get(id=self.game_id).available:
             output += "Waiting for more player(s).."
         elif self.parsed_pending[callerIP] is None:
             output += "Your Turn"
@@ -588,6 +592,7 @@ def _create_game(map_name, turns_limit, player,  fresh=True):
         new_game.ongoing = True
         new_game.available = False
         new_game.parsed_seq_data["players"]=list(Board.objects.get(id=new_game.board_id).parsed_pending.keys())
+        new_game.save()
     return (new_game, "")
 
 class Config(models.Model):
@@ -599,11 +604,11 @@ def async_timer(timer_stop):
     ongoing_games = Game.objects.filter(ongoing=True)
 
     for game in ongoing_games:
-        print(str(game.id) + " is ongoing")
         if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
             print("tick")
             resp = Board.objects.get(id=game.board_id).handleTurn("admin", "tick")
-            if resp != "break" and resp != "continue":
+            print("resp:" + resp)
+            if resp != "break" and resp != "continue" and resp!= "":
                 game.ongoing = False
             game.start_time = datetime.now(timezone.utc)
             game.save()
