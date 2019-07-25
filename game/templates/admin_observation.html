@@ -6,8 +6,18 @@
 <!--Board is loaded through javascript--> 
 <div style="display:table; text-align: center">
     <div style="display: table-row; width:600px; height:500px">
-        <div id="board" style="display: table-cell; width:50%; height:500px; position:fixed">
+        <div style="display: table-cell; width:50%; height:500px; position:fixed">
+            <div>
+                <input id="snapshot_slider" type="range" min="1" max="{{snapshot_range}}" step="1" >
+            </div>
+            <div id="board">
+
+            </div>
+            
+
         </div>
+        
+        
         <div id="graph" style="display: table-cell; width:50%; height:500px; position: relative">
         </div>
     </div>
@@ -26,10 +36,14 @@
 var history = -1;
 
 $(document).ready(function(){
+    $("#snapshot_slider").change(function()
+    {
+        $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}}, "history": $("#snapshot_slider").val() });
+    });
     $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}} });
     $("#graph").load("graph", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "game_id": {{game_id}} });
     setInterval(function(e){
-        $.ajax({url: "board", data: {"poll" : "true", "admin" : true}, method:"GET", success: function(result){
+        $.ajax({url: "board", data: {"poll" : "true", "admin" : true, "game_id": {{game_id}}}, method:"GET", success: function(result){
     if (result=="True")
     {
         $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}} });
@@ -40,16 +54,6 @@ $(document).ready(function(){
 });
 
 
-function play_history(e)
-{
-    setInterval(function(e){
-        console.log($("#board").val());
-        history++;
-        boundFunc = $("#board").load.bind(document); 
-        boundFunc("board", {"history_index" : history, csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")});
-    }, 2000);
-    
-}
 
 </script>
 

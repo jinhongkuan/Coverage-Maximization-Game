@@ -92,16 +92,25 @@ def board_view(request):
         player_board = Board.objects.get(id=Game.objects.get(id=request.POST["game_id"]).board_id)
         while (player_board.locked):
             pass 
+        hist_request = -1 if "history" not in request.POST else int(request.POST["history"])
         view_context = {
-            "cells" : player_board.getDisplayCells("admin"),
-            "message" : player_board.getMessage("admin"),
+            "cells" : player_board.getDisplayCells("admin", history=hist_request),
+            "message" : player_board.getMessage("admin", history=hist_request),
             "map_name" : player_board.getName()
         }
-
         if player_board.parsed_needs_refresh["admin"]=="True":
             player_board.parsed_needs_refresh["admin"] = "False"
             player_board.saveState()
     else:
+        # Respond to admin poll requests
+        if request.method == "GET" and "poll" in request.GET:
+            if "admin" in request.GET:
+                try:
+                    player_board = Board.objects.get(id=Game.objects.get(id=request.GET["game_id"]).board_id)
+                except ObjectDoesNotExist as e:
+                    return render(request, "error.html", {"error_code": str(e)})
+                return HttpResponse(player_board.parsed_needs_refresh["admin"])
+
         # Obtain player
         try:
             player = Player.objects.get(IP=ip)
@@ -118,15 +127,14 @@ def board_view(request):
             except ObjectDoesNotExist as e:
                 return render(request, "error.html", {"error_code": str(e)})
         
-        # Respond to poll requests
+        # Respond to player post request
         if request.method == "GET" and "poll" in request.GET:
-            if "admin" in request.GET:
-                return HttpResponse(player_board.parsed_needs_refresh["admin"])
-            else:
-                print(player_board.parsed_needs_refresh)
-                resp = player_board.parsed_needs_refresh[player.IP] if player.IP in player_board.parsed_needs_refresh else "False"
-                print("Poll Response: " + str(resp))
-                return HttpResponse(resp)
+            resp = player_board.parsed_needs_refresh[player.IP] if player.IP in player_board.parsed_needs_refresh else "False"
+            print("Poll Response: " + str(resp))
+            return HttpResponse(resp)
+
+        
+        
         # Respond to input requests
         redirect = "" 
         if "click_data" in request.POST:
@@ -259,7 +267,8 @@ def admin_view(request):
     
 def admin_observation_view(request):
     if "game_id" in request.GET:
-        return render(request, "admin_observation.html", {"game_id" : request.GET["game_id"] })
+        game_id = int(request.GET["game_id"])
+        return render(request, "admin_observation.html", {"game_id" : game_id, "snapshot_range" : len([x for x in Board.objects.get(id=Game.objects.get(id=game_id).board_id).parsed_history if x is not None]) })
     else:
         return HttpResponse("Error, please stipulate game id to observe")
 

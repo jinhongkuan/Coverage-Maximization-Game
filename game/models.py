@@ -122,6 +122,7 @@ class Board(models.Model):
     name = models.TextField(null=False, default="")
     needs_refresh = models.TextField(null=False, default='{"admin":"True"}')
     locked = models.BooleanField(null=False, default=False)
+    
     grid_type = {'-1': "grey-grid", '0': "white-grid", '1': "black-grid", '2': "singly-covered-grid", '3': "doubly-covered-grid", '4': 'uncertain-grid'}
 
     parsed_history = []
@@ -293,7 +294,14 @@ class Board(models.Model):
                     print("set " + player + " to true")
                     self.parsed_needs_refresh[player] = "True"
             # Commit all actions 
-            self.parsed_history = [None] * len(self.parsed_history) + [deepcopy(self.grid)]
+            # Condense memory to only positions
+            if (len(self.parsed_history)-1) % Config.objects.get(main=True).snapshot_interval == 0:
+                self.parsed_history[-1] = {}
+                for agent in self.IP_Agent:
+                    self.parsed_history[-1][agent] = (self.IP_Agent[agent].r, self.IP_Agent[agent].c) 
+            else:
+                self.parsed_history[-1] = None 
+            self.parsed_history += [deepcopy(self.grid)]
             self.parsed_score_history += [self.getGlobalScore()]
             self.saveState()
 
@@ -362,7 +370,7 @@ class Board(models.Model):
 
         return (self.neighbors, self.connected, agents)
 
-    def attemptAction(self, callerIP, action, test=False):
+    def attemptAction(self, callerIP, action, test=False, no_pending=False):
         try:
             agent=self.IP_Agent[callerIP]
         except KeyError:
@@ -391,7 +399,8 @@ class Board(models.Model):
             if test:
                 agent.r = original_r
                 agent.c = original_c
-                self.parsed_pending[callerIP] = action 
+                if not no_pending:
+                    self.parsed_pending[callerIP] = action 
                 self.saveState()
             return True
         
@@ -419,10 +428,18 @@ class Board(models.Model):
     def getName(self, inc_ext=False):
         return self.name + (".csv" if inc_ext else "")
 
-    def getMessage(self, caller):
+    def getMessage(self, caller, history=-1):
         if caller == "admin":
             message = "You are currently spectating the game as an admin"
-
+            if history != -1:
+                data_points = 0 
+                for i in range(len(self.parsed_history)):
+                    if self.parsed_history[i] is not None:
+                        data_points += 1 
+                        if data_points == history:
+                            history = i 
+                            break
+                message += "<br>Turn: " + str(history) 
             message += "<br>Average Score: " + str(round(sum(self.parsed_score_history)/float(len(self.parsed_score_history)), 2))
             for player in self.IP_Agent:
                 message += "<br>" + player + ": " + "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[player].token) + "' style='position: relative; z-index:1'>"
@@ -441,7 +458,7 @@ class Board(models.Model):
         output += "<br>(" + str(int(seq.parsed_data[my_game.parsed_seq_data["index"]][1]) - len(self.parsed_history)) + " turns remaining)"
         return output 
         
-    def getDisplayCells(self, caller):
+    def getDisplayCells(self, caller, history=-1):
         output = {}
         total_covered_set = set()
         repeated_covered_set = []
@@ -452,12 +469,28 @@ class Board(models.Model):
             visible_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight, self.connected)
             certain_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight - self.max_coverage_range, self.connected)
 
-        for agent_ip in self.IP_Agent:
-            if (self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c) not in visible_set:
-                continue
-            x = self.getCoveredSet((self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c), self.IP_Agent[agent_ip].coverage, self.neighbors)
-            total_covered_set = total_covered_set.union(x)
-            repeated_covered_set += list(x)
+        if history==-1 or history==len([x for x in self.parsed_history if x is not None]):
+            for agent_ip in self.IP_Agent:
+                if (self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c) not in visible_set:
+                    continue
+                x = self.getCoveredSet((self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c), self.IP_Agent[agent_ip].coverage, self.neighbors)
+                total_covered_set = total_covered_set.union(x)
+                repeated_covered_set += list(x)
+        else:
+            snapshots = 0
+            for i in range(len(self.parsed_history)):
+                if self.parsed_history[i] != None:
+                    snapshots+= 1
+                    if snapshots == history:
+                        snapshot = self.parsed_history[i]
+                        history = i
+                        for agent_ip in snapshot:
+                            print(agent_ip)
+                            print(snapshot[agent_ip])
+                            x = self.getCoveredSet(tuple(snapshot[agent_ip]), self.IP_Agent[agent_ip].coverage, self.neighbors)
+                            total_covered_set = total_covered_set.union(x)
+                            repeated_covered_set += list(x)
+                        break 
         for element in total_covered_set:
             repeated_covered_set.remove(element)
         repeated_covered_set = set(repeated_covered_set)
@@ -481,15 +514,25 @@ class Board(models.Model):
                     else:
                         val = "1"
                 content = ""
-                for agent in self.IP_Agent:
-                    if self.IP_Agent[agent].r == r and self.IP_Agent[agent].c == c and val != "-1":
-                        if caller != "admin" and agent == caller.IP:
-                            content = "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; margin: 6px 13.5px'>"
-                            content += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
-                        else:
-                            content = "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                if history==-1 or history==len([x for x in self.parsed_history if x is not None]):
+                    for agent in self.IP_Agent:
+                        if self.IP_Agent[agent].r == r and self.IP_Agent[agent].c == c and val != "-1":
+                            if caller != "admin" and agent == caller.IP:
+                                content = "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; margin: 6px 13.5px'>"
+                                content += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                            else:
+                                content = "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                else:
+                    snapshot = self.parsed_history[history]
+                    for agent in snapshot:
+                        if tuple(snapshot[agent]) == (r,c) and val != "-1":
+                            if caller != "admin" and agent == caller.IP:
+                                content = "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; margin: 6px 13.5px'>"
+                                content += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                            else:
+                                content = "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
 
-                output[key] = (self.grid_type[val], content)
+                output[key] = (self.grid_type[val] + (" hover-highlight" if caller!="admin" and self.attemptAction(caller.IP, json.dumps([r,c]), test=True, no_pending=True) else ""), content)
         return output 
     
     def getGraphData(self):
@@ -597,6 +640,7 @@ def _create_game(map_name, turns_limit, player,  fresh=True):
 
 class Config(models.Model):
     timer_enabled = models.BooleanField(null=False,default=False)
+    snapshot_interval = models.IntegerField(null=False, default=10)
     main = models.BooleanField(null=False,default=False)
     
 

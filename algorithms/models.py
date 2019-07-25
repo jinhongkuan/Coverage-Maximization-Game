@@ -49,17 +49,20 @@ class BLLL(Algorithm):
         if random.random() > BLLL.poisson(self.poisson_rate, 1):
             return json.dumps(position)
 
-        action = random.choice(neighbors[position])
+        action = random.choice(list(getCoveredSet(position, self.agent.movement, neighbors)-set([position])))
         covered_set_alpha = set([position] + neighbors[position])
         marginal_covered_set_alpha = covered_set_alpha - covered 
         covered_set_beta = set([action] + neighbors[action])
-        marginal_covered_set_beta = covered_set_beta - covered 
-        alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
-        beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
-        if random.uniform(0,1) <= alpha/(alpha+beta):
-            action = position
+        marginal_covered_set_beta = covered_set_beta - covered
+        if self.exploration_term == 999: # Special case for fully-greedy algo
+            if len(marginal_covered_set_alpha) >= len(marginal_covered_set_beta):
+                action = position 
         else:
-            pass 
+            alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
+            beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
+            if random.uniform(0,1) <= alpha/(alpha+beta):
+                action = position
+
 
         return json.dumps(action)
 
@@ -108,7 +111,7 @@ class Conscientious(Algorithm):
         if jerk is self.agent:
             jerk_marginal = set()
         position = (self.agent.r, self.agent.c)
-        action = random.choice(neighbors[position])
+        action = random.choice(list(getCoveredSet(position, self.agent.movement, neighbors)-set([position])))
         covered_set_alpha = set([position] + neighbors[position])
         marginal_covered_set_alpha = covered_set_alpha - covered 
         jerk_marginal_alpha = jerk_marginal.intersection(marginal_covered_set_alpha)
@@ -152,21 +155,7 @@ class Explorer(Algorithm):
         
         util = sum([frequency[key] * distance_discount**key for key in frequency])
         return util 
-    def getCoveredSet(self, position, extension, neighbors):
-        covered_set = set()
-        last_iter = set([position])
-        covered_set = covered_set.union(last_iter)
-        for i in range(extension):
-            this_iter = set()
-            if len(last_iter) == 0:
-                break 
-            for cell in last_iter:
-                for neighbor in neighbors[cell]:
-                    if neighbor not in covered_set:
-                        this_iter.add(neighbor)
-                        covered_set.add(neighbor)
-            last_iter = this_iter
-        return covered_set
+
 
     def computeNext(self, state):
         neighbors, connected, visible_agents = state 
@@ -188,15 +177,15 @@ class Explorer(Algorithm):
         position = (self.agent.r, self.agent.c)
         if random.random() > BLLL.poisson(self.poisson_rate, 1):
             return json.dumps(position)
-        visible_tiles = self.getCoveredSet(position, self.agent.sight, neighbors)
-        connected_tiles = self.getCoveredSet(position, self.agent.sight, connected)
+        visible_tiles = getCoveredSet(position, self.agent.sight, neighbors)
+        connected_tiles = getCoveredSet(position, self.agent.sight, connected)
         visible_walls = visible_tiles - connected_tiles
         parsed_memory = set(self.agent.parsed_memory)
         parsed_memory = parsed_memory.union(visible_walls)
         self.agent.parsed_memory =  list(parsed_memory)
         self.agent.saveState()
         visible_walls = parsed_memory
-        action = random.choice(neighbors[position])
+        action = random.choice(list(getCoveredSet(position, self.agent.movement, neighbors)-set([position])))
         covered_set_alpha = set([position] + neighbors[position])
         marginal_covered_set_alpha = covered_set_alpha - covered
         alpha_score = sum([self.computeTileUtility(x, neighbors, visible_walls, self.distance_discount) for x in marginal_covered_set_alpha])
@@ -212,3 +201,18 @@ class Explorer(Algorithm):
 
         return json.dumps(action)
 
+def getCoveredSet(position, extension, neighbors):
+        covered_set = set()
+        last_iter = set([position])
+        covered_set = covered_set.union(last_iter)
+        for i in range(extension):
+            this_iter = set()
+            if len(last_iter) == 0:
+                break 
+            for cell in last_iter:
+                for neighbor in neighbors[cell]:
+                    if neighbor not in covered_set:
+                        this_iter.add(neighbor)
+                        covered_set.add(neighbor)
+            last_iter = this_iter
+        return covered_set

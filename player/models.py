@@ -16,6 +16,7 @@ class Agent(models.Model):
     c = models.IntegerField(null=False)
     coverage = models.IntegerField(null=False,default=1)
     sight = models.IntegerField(null=False,default=2)
+    movement = models.IntegerField(null=False, default=1)
     memory = models.TextField(null=False,default="[]")
     parsed_memory = None 
 

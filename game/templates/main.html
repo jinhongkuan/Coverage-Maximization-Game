@@ -1,7 +1,23 @@
 {% extends 'base.html' %}
 {% block content_main %}
-<h2>Welcome to Coverage Maximization Game</h2>
-<form action="game" method="POST">
+<h2 style="text-align: center">Welcome to Coverage Maximization Game</h2>
+<h3 style="text-align: center">Text Instructions:</h3>
+
+<div style="border-style: groove; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 16px; width:fit-content; height: fit-content; margin:auto; line-height: 30px; padding: 10px">
+        1. Players in this game are represented by tokens  <img src="static/tokens/token3.png" align=middle style="padding-left:0.5em">
+        <br>2. You control the token with a lock on it 
+        <div style="display: inline-block; padding-left: 0.5em">
+                <img src="/static/tokens/player.png" style="position:absolute; z-index:2; margin: 6px 13.5px" align=middle><img src="/static/tokens/token8.png" style="position: relative; z-index:1" align=middle>
+        </div>
+        <br>3. Each player's agent cover tiles in the surrounding (indicated by green tiles), except obstacles (black tiles)
+        <br><img src="static/terminologies.png" style="width: 207px; height:179px; display:block; margin-left: auto; margin-right: auto">
+        <br>4. If multiple agents are near a tile, an overlap occurs as indicated by dark green tiles
+        <br><img src="static/overlapping.gif" style="width: 156px; height:124px; display:block; margin-left: auto; margin-right: auto">
+        <br>5. The objective of this game is for every player to cooperatively cover as much space as possible
+        <br>6. To maximize total coverage, avoid overlaps and obstacles
+        <br>7. The first round is a tutorial and your actions will not be recorded    
+</div>
+<form action="game" method="POST" style="text-align: center">
     {% csrf_token %}
     <input type="submit" name = "command" value="Start Session" />
     <input type="submit" name = "command" value="Continue Session" />
