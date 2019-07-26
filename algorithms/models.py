@@ -2,14 +2,13 @@ from django.db import models
 import random 
 import json
 import math 
-
 # Create your models here.
 
 # These are vanilla classes
 class Algorithm():
     def __init__(self, agent):
         self.agent = agent 
-        self.name = "algorithm_" + str(agent.id)
+        self.name = "algorithm_"
         
     def computeNext(self, state):
         action = None 

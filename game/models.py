@@ -20,16 +20,14 @@ class Game(models.Model):
     ongoing = models.BooleanField(null=False, default=False)
     max_turns = models.IntegerField(null=False, default=0)
     seq_data = models.TextField(null=True, default="{}")
-    AI_players = models.TextField(null=False, default="")
-    human_players = models.TextField(null=False, default="[]")
     map_recipe = models.TextField(null=False, default="")
     board_id = models.IntegerField(null=False, default=-1)
-    position_assignment = models.TextField(null=False, default="[]")
     start_time = models.DateTimeField(null=True)
-    parsed_human_players = [] 
-    parsed_position_assignment = [] 
-    parsed_seq_data = {}
+    position_assignment = models.TextField(null=False, default="[]")
+    human_players = models.TextField(null=False, default="[]")
     
+    parsed_seq_data = {}
+    parsed_human_players = {}
     @classmethod 
     def hasTimer(cls):
         if hasattr(cls, "timer"):
@@ -41,11 +39,10 @@ class Game(models.Model):
     def initialize(self):
         if self.start_time == None:
             self.start_time = datetime.now(timezone.utc)
-        self.parsed_human_players = json.loads(self.human_players)
-        self.parsed_position_assignment = json.loads(self.position_assignment)
         self.parsed_seq_data = json.loads(self.seq_data)
+        self.parsed_human_players = json.loads(self.human_players)
 
-    def make_board(self, load_map, map_name, fresh):
+    def make_board(self, load_map, map_name):
 
         # Only accept rectangular maps
         assert([len(row) == len(load_map[0]) for row in load_map])
@@ -56,23 +53,40 @@ class Game(models.Model):
         game_board.load_map(load_map)
 
         # Create AI players
-        parsed_AI_players = json.loads(self.AI_players)
-        
-        for recipe in parsed_AI_players:
-            game_board.addAI(recipe[0],recipe[1][0], recipe[1][1], fresh)
+        token_assignment = self.parsed_seq_data["token_assignment"]
+        players = self.parsed_seq_data["players"]
+        position_assignment = json.loads(self.position_assignment) # RMB to add this before Game.objects.create
+        seq = Sequence.objects.get(id=self.parsed_seq_data["id"])
+
+        if len(token_assignment) == 0:
+            for i in range(len(players)):
+                new_token = ""
+                while (new_token in token_assignment or new_token == ""):
+                    new_token = "tokens/token" + str(random.randint(0,99)) + ".png"
+                token_assignment += [new_token]
+
+        for i in range(len(players)):
+            corresponding_entity = seq.parsed_players[i]
+            if corresponding_entity != "player":
+                game_board.addAI(corresponding_entity, position_assignment[i][0], position_assignment[i][1], token_assignment[i])
+
         self.board_id = game_board.id
         self.saveState() 
 
         
     def add_player(self, player):
-        if len(self.parsed_human_players) == len(self.parsed_position_assignment):
+        max_players = Sequence.objects.get(id=self.parsed_seq_data["id"]).parsed_players.count("player")
+        if len(self.parsed_human_players) == max_players:
             print("Error joining, game is full")
             return False
 
         if player in self.parsed_human_players:
             return False 
         
-        acceptable_players = [x[0] for x in self.parsed_position_assignment]
+        acceptable_players = self.parsed_seq_data["players"]
+        position_assignment = json.loads(self.position_assignment)
+        token_assignment = self.parsed_seq_data["token_assignment"]
+
         if player.IP in acceptable_players:
             ind = acceptable_players.index(player.IP)
             
@@ -89,17 +103,16 @@ class Game(models.Model):
             print("Error, trying to add player to non-existent board")
             return False
         
-        pos = self.parsed_position_assignment[ind][1]
-        board.add_player(player,pos[0],pos[1]) 
+        pos = position_assignment[ind]
+        board.add_player(player,pos[0],pos[1],token_assignment[ind]) 
         self.parsed_human_players += [player.IP]
+        self.parsed_seq_data["players"][ind] = player.IP
 
-        if len(self.parsed_human_players) == len(self.parsed_position_assignment):
+        if len(self.parsed_human_players) == max_players:
             self.ongoing = True
             self.available = False 
-            self.parsed_seq_data["players"] = list(board.parsed_pending.keys())
             self.start_time = datetime.now(timezone.utc)
             self.save()
-
         player.game_id = self.id 
         player.all_game_ids += str(self.id) + ","
         player.save()
@@ -108,7 +121,6 @@ class Game(models.Model):
     def saveState(self):
         self.seq_data = json.dumps(self.parsed_seq_data)
         self.human_players = json.dumps(self.parsed_human_players)
-        self.position_assignment = json.dumps(self.parsed_position_assignment)
         self.save()
 
 class Board(models.Model):
@@ -207,10 +219,10 @@ class Board(models.Model):
             self.max_coverage_range = max(self.max_coverage_range, self.IP_Agent[player].coverage)
 
 
-    def add_player(self, caller, row, col):
+    def add_player(self, caller, row, col, token_):
         if caller.IP not in self.parsed_pending:
             self.parsed_pending[caller.IP] = None 
-            new_agent = Agent.objects.create(r=row,c=col,token="tokens/token" + str(random.randint(0,99)) + ".png")
+            new_agent = Agent.objects.create(r=row,c=col,token=token_)
             self.IP_Agent[caller.IP] = new_agent 
         print("Player " + str(caller.IP) + " has joined the board")
         for player in self.parsed_needs_refresh:
@@ -218,21 +230,14 @@ class Board(models.Model):
         self.parsed_needs_refresh[caller.IP] = "False"
         self.saveState()
 
-    def addAI(self, recipe, row, col, fresh):
+    def addAI(self, recipe, row, col, token_):
         # An AI is controlled by the algo_instance of an agent
-        if True: # Assumes that AI do not attempt to join games themselves
-            if fresh:
-                new_agent = Agent.objects.create(r=row,c=col,token="tokens/token" + str(random.randint(0,99)) + ".png", algorithm=recipe)
-                new_agent.save()
-                agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
-            else:
-                old_agent = Agent.objects.get(id=recipe)
-                new_agent = Agent.objects.create(r=row,c=col,token=old_agent.token, algorithm=old_agent.algorithm)
-                new_agent.save()
-                agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
-            
-            self.parsed_pending[agent_name] = None 
-            self.IP_Agent[agent_name] = new_agent 
+        new_agent = Agent.objects.create(r=row,c=col,token=token_, algorithm=recipe)
+        new_agent.save()
+        agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
+    
+        self.parsed_pending[agent_name] = None 
+        self.IP_Agent[agent_name] = new_agent 
         print("AI " + str(agent_name) + " has joined the board")
         self.saveState()
 
@@ -319,15 +324,12 @@ class Board(models.Model):
                 if new_index >= len(seq.parsed_data):
                     redirect = "end"
                 else:
-                    map_info = seq.parsed_data[new_index] 
-                    players = seq_data["players"]
-                    new_game, msg = _create_game(map_info[0],map_info[1],players, False)
+                    new_data = deepcopy(seq_data)
+                    new_data["index"] = new_index
+                    new_game, msg = _create_game(new_data)
                     if new_game is None:
                         redirect = "error"
                     else:
-                        new_game.parsed_seq_data["id"] = seq_data["id"]
-                        new_game.parsed_seq_data["index"] = new_index
-                        new_game.saveState()
                         redirect = "end_round?game_id=" + str(new_game.id) 
                 for player_ in self.parsed_needs_refresh:
                     self.parsed_needs_refresh[player_] = redirect
@@ -442,7 +444,12 @@ class Board(models.Model):
                 message += "<br>Turn: " + str(history) 
             message += "<br>Average Score: " + str(round(sum(self.parsed_score_history)/float(len(self.parsed_score_history)), 2))
             for player in self.IP_Agent:
-                message += "<br>" + player + ": " + "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[player].token) + "' style='position: relative; z-index:1'>"
+                x = Player.objects.filter(IP=player)
+                if len(x) == 1:
+                    x = x[0].name 
+                else:
+                    x = player
+                message += "<br>" + x + ": " + "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[player].token) + "' style='position: relative; z-index:1'>"
             return message
         # Assumes this is a human player
         callerIP = caller.IP  
@@ -581,7 +588,14 @@ models.signals.post_init.connect(initialize_board, Board)
 models.signals.post_init.connect(initialize_game, Game)
 models.signals.post_init.connect(initialize_sequence, Sequence)
 
-def _create_game(map_name, turns_limit, player,  fresh=True):
+def _create_game(seq_data_):
+    map_name = Sequence.objects.get(id=seq_data_["id"]).parsed_data[seq_data_["index"]][0]
+    turns_limit = Sequence.objects.get(id=seq_data_["id"]).parsed_data[seq_data_["index"]][1]
+
+    if len(seq_data_["players"]) == 0:
+        seq_data_["players"] = copy(Sequence.objects.get(id=seq_data_["id"]).parsed_players)
+    player = seq_data_["players"]
+    
     read_map = []
     start_pos = []
     with open(os.path.join(STATIC_ROOT, map_name)) as map_file:
@@ -601,36 +615,16 @@ def _create_game(map_name, turns_limit, player,  fresh=True):
     elif len(start_pos) == 1:
         start_pos = [start_pos[0]]*len(player)
     # TEMP - Placeholder for future admin-controlled bot assignment
-    if fresh:
-        AI_recipes = list(filter(lambda x:x!="player", player))
-        human_players = list(filter(lambda x:x=="player", player))
-        for i in range(len(AI_recipes)):
-            pos_index = random.randint(0, len(start_pos)-1)
-            AI_recipes[i] = (AI_recipes[i], start_pos[pos_index])
-            del start_pos[pos_index]
-        for i in range(len(human_players)):
-            pos_index = random.randint(0, len(start_pos)-1)
-            human_players[i] = (human_players[i], start_pos[pos_index])
-            del start_pos[pos_index]
-    else:
-        AI_recipes = list(filter(lambda x:"_" in x, player))
-        human_players = list(filter(lambda x:"_" not in x, player))
-        for i in range(len(AI_recipes)):
-            pos_index = random.randint(0, len(start_pos)-1)
-            AI_recipes[i] = (AI_recipes[i].split('_')[1], start_pos[pos_index])
-            del start_pos[pos_index]
-        for i in range(len(human_players)):
-            pos_index = random.randint(0, len(start_pos)-1)
-            human_players[i] = (human_players[i], start_pos[pos_index])
-            del start_pos[pos_index]
 
-    new_game = Game.objects.create(AI_players=json.dumps(AI_recipes), position_assignment=json.dumps(human_players), \
+    
+
+    new_game = Game.objects.create(seq_data=json.dumps(seq_data_), position_assignment=json.dumps(start_pos), \
             map_recipe=json.dumps(read_map), max_turns=turns_limit)
     print("Created new game(" + str(new_game.id) + ")")
-    
+    print(new_game.parsed_seq_data)
     # new_game.saveState()
-    new_game.make_board(read_map, map_name.split(".")[0], fresh)
-    if len(human_players) == 0:
+    new_game.make_board(read_map, map_name.split(".")[0])
+    if player.count("player") == 0:
         print("set ongoing to true")
         new_game.ongoing = True
         new_game.available = False

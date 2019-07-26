@@ -39,17 +39,11 @@ def game_view(request):
             if len(open_games) == 0:
                 default_seq_name= "seq0"
                 fresh = True
-                seq = Sequence.objects.get(name=default_seq_name)
-                new_index = 0
-                map_info = seq.parsed_data[0] 
-                players = seq.parsed_players
-                new_game, msg = _create_game(map_info[0], map_info[1], players, fresh)
+                seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
+                new_game, msg = _create_game(seq_data)
                 if new_game is None:
                     render(request, "error.html", {"error_code": msg})
                 else:
-                    new_game.parsed_seq_data["id"] = seq.id
-                    new_game.parsed_seq_data["index"] = new_index
-                    # new_game.saveState()
                     new_game.add_player(player)
                 
 
@@ -194,17 +188,10 @@ def admin_view(request):
         if "player" in seq.parsed_players:
             message += "Error testing game " + str(id_to_test) + ": game requires human players\n"
         else:
-            seq = Sequence.objects.get(id=id_to_test)
-            new_index = 0
-            map_info = seq.parsed_data[0] 
-            players = seq.parsed_players
-            new_game, msg = _create_game(map_info[0], map_info[1], players, True)
+            seq_data = {"index": 0, "id": id_to_test, "token_assignment":[], "players": []}
+            new_game, msg = _create_game(seq_data)
             if new_game is None:
                 render(request, "error.html", {"error_code": msg})
-            else:
-                new_game.parsed_seq_data["id"] = seq.id
-                new_game.parsed_seq_data["index"] = new_index
-                new_game.saveState()
 
             # Resolve all-bot games
             fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
@@ -241,11 +228,16 @@ def admin_view(request):
         try:
             corresponding_board = Board.objects.get(id=game.board_id)
             game_table += [[]]
-            AI_Players = json.loads(game.AI_players)
-            extracted_AI_Players = [] 
-            for ai in AI_Players:
-                extracted_AI_Players += [ai[0]]
-            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(extracted_AI_Players), make_href("X", "admin?game_del="+str(game.id))]
+            players = game.parsed_seq_data["players"]
+            translated_players = [] 
+            for ip in players:
+                x = Player.objects.filter(IP=ip)
+                if len(x) == 1:
+                    x = x[0].name 
+                else:
+                    x = ip 
+                translated_players += [x]
+            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(translated_players), make_href("X", "admin?game_del="+str(game.id))]
         except ObjectDoesNotExist:
             pass
     main_config = Config.objects.get(main=True)
