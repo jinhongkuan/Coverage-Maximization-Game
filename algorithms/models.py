@@ -53,15 +53,46 @@ class BLLL(Algorithm):
         marginal_covered_set_alpha = covered_set_alpha - covered 
         covered_set_beta = set([action] + neighbors[action])
         marginal_covered_set_beta = covered_set_beta - covered
-        if self.exploration_term == 999: # Special case for fully-greedy algo
-            if len(marginal_covered_set_alpha) >= len(marginal_covered_set_beta):
-                action = position 
-        else:
-            alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
-            beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
-            if random.uniform(0,1) <= alpha/(alpha+beta):
-                action = position
+       
+        alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
+        beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
+        if random.uniform(0,1) <= alpha/(alpha+beta):
+            action = position
 
+
+        return json.dumps(action)
+
+class Greedy(Algorithm):
+    def __init__(self, agent, pick_rate):
+        super().__init__(agent)
+        self.name = "Greedy_" + str(agent.id)
+        self.pick_rate = pick_rate
+
+    def computeNext(self, state):
+        neighbors, connected, visible_agents = state 
+        covered = set()
+        repeated = []
+
+        for agent in visible_agents:
+            if agent is self.agent:
+                continue
+            territory = visible_agents[agent]
+            covered = covered.union(territory)
+            repeated += list(territory)
+        for c in covered:
+            repeated.remove(c)
+        
+        repeated = set(repeated)
+
+        position = (self.agent.r, self.agent.c)
+
+        if random.random() > self.pick_rate:
+            return json.dumps(position)
+        actions = list(getCoveredSet(position, self.agent.movement, neighbors))
+        for i in range(len(actions)):
+            actions[i] = (actions[i], len(getCoveredSet(actions[i], self.agent.coverage, neighbors).difference(covered)))
+        actions = sorted(actions, key=lambda x:x[1], reverse=True)   
+        action = actions[0][0]     
 
         return json.dumps(action)
 

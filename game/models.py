@@ -62,13 +62,13 @@ class Game(models.Model):
             for i in range(len(players)):
                 new_token = ""
                 while (new_token in token_assignment or new_token == ""):
-                    new_token = "tokens/token" + str(random.randint(0,99)) + ".png"
+                    new_token = "tokens/token" + random.choice(["green","blue","pink","orange"]) + ".png"
                 token_assignment += [new_token]
 
         for i in range(len(players)):
             corresponding_entity = seq.parsed_players[i]
             if corresponding_entity != "player":
-                game_board.addAI(corresponding_entity, position_assignment[i][0], position_assignment[i][1], token_assignment[i])
+                game_board.addAI(corresponding_entity, position_assignment[i][0], position_assignment[i][1], token_assignment[i], seq.parsed_settings)
 
         self.board_id = game_board.id
         self.saveState() 
@@ -83,6 +83,7 @@ class Game(models.Model):
         if player in self.parsed_human_players:
             return False 
         
+        seq = Sequence.objects.get(id=self.parsed_seq_data["id"])
         acceptable_players = self.parsed_seq_data["players"]
         position_assignment = json.loads(self.position_assignment)
         token_assignment = self.parsed_seq_data["token_assignment"]
@@ -104,7 +105,7 @@ class Game(models.Model):
             return False
         
         pos = position_assignment[ind]
-        board.add_player(player,pos[0],pos[1],token_assignment[ind]) 
+        board.add_player(player,pos[0],pos[1],token_assignment[ind], seq.parsed_settings) 
         self.parsed_human_players += [player.IP]
         self.parsed_seq_data["players"][ind] = player.IP
 
@@ -219,20 +220,19 @@ class Board(models.Model):
             self.max_coverage_range = max(self.max_coverage_range, self.IP_Agent[player].coverage)
 
 
-    def add_player(self, caller, row, col, token_):
+    def add_player(self, caller, row, col, token_, settings):
         if caller.IP not in self.parsed_pending:
             self.parsed_pending[caller.IP] = None 
-            new_agent = Agent.objects.create(r=row,c=col,token=token_)
+            new_agent = Agent.objects.create(r=row,c=col,token=token_, coverage=settings["coverage"], sight=settings["sight"], movement=settings["movement"])
             self.IP_Agent[caller.IP] = new_agent 
-        print("Player " + str(caller.IP) + " has joined the board")
         for player in self.parsed_needs_refresh:
             self.parsed_needs_refresh[player] = "True"
         self.parsed_needs_refresh[caller.IP] = "False"
         self.saveState()
 
-    def addAI(self, recipe, row, col, token_):
+    def addAI(self, recipe, row, col, token_, settings):
         # An AI is controlled by the algo_instance of an agent
-        new_agent = Agent.objects.create(r=row,c=col,token=token_, algorithm=recipe)
+        new_agent = Agent.objects.create(r=row,c=col,token=token_, algorithm=recipe, coverage=settings["coverage"], sight=settings["sight"], movement=settings["movement"])
         new_agent.save()
         agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
     
@@ -396,8 +396,8 @@ class Board(models.Model):
         dr, dc = action_parsed
         agent.r = dr 
         agent.c = dc 
-        if agent.r >= 0 and agent.r < self.height and agent.c >= 0 and agent.c < self.width and self.grid[agent.r][agent.c] != "1" and \
-            ((dr, dc) in self.neighbors[(original_r, original_c)] or (dr,dc)==(original_r,original_c)):
+        accessible = Board.getCoveredSet((original_r, original_c), agent.movement, self.neighbors)
+        if agent.r >= 0 and agent.r < self.height and agent.c >= 0 and agent.c < self.width and self.grid[agent.r][agent.c] != "1" and (dr, dc) in accessible:
             if test:
                 agent.r = original_r
                 agent.c = original_c
@@ -469,6 +469,8 @@ class Board(models.Model):
         output = {}
         total_covered_set = set()
         repeated_covered_set = []
+        seq = Sequence.objects.get(id=(Game.objects.get(id=self.game_id).parsed_seq_data["id"]))
+        show_obstacles = seq.parsed_settings["map_knowledge"]
         if caller == "admin":
             visible_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
             certain_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
@@ -492,8 +494,7 @@ class Board(models.Model):
                         snapshot = self.parsed_history[i]
                         history = i
                         for agent_ip in snapshot:
-                            print(agent_ip)
-                            print(snapshot[agent_ip])
+
                             x = self.getCoveredSet(tuple(snapshot[agent_ip]), self.IP_Agent[agent_ip].coverage, self.neighbors)
                             total_covered_set = total_covered_set.union(x)
                             repeated_covered_set += list(x)
@@ -505,7 +506,10 @@ class Board(models.Model):
             for c in range(self.width):
                 key = (r,c)
                 if key not in visible_set:
-                    val = "-1"
+                    if show_obstacles and self.grid[r][c] == "1":
+                        val = "1"
+                    else:
+                        val = "-1"
                 else:
                     if self.grid[r][c] == "0":
                         if key in repeated_covered_set:
@@ -568,12 +572,14 @@ class Sequence(models.Model):
     name = models.TextField(null=False)
     players = models.TextField(null=True, default='[]')
     data = models.TextField(null=True, default='[]')
+    settings = models.TextField(null=False, default='{"coverage": 1, "sight": 3, "movement": 1, "map_knowledge":"false"}')
     parsed_data = None 
     parsed_players = None
-
+    parsed_settings = None 
     def initialize(self):
         self.parsed_data = json.loads(self.data)
         self.parsed_players = json.loads(self.players)
+        self.parsed_settings = json.loads(self.settings)
 
 def initialize_board(instance, **kwargs):
     instance.initialize()

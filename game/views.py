@@ -2,7 +2,7 @@ import json
 import os 
 import random
 from ipware import get_client_ip
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseRedirect
 from player.models import Player
@@ -203,16 +203,17 @@ def admin_view(request):
                 elif fin == "break" or fin == "end":
                     break 
                 else:
-                    current_id = int(fin.split('=')[1])
+                    print("fin:" + str(fin))
+                    current_id = Game.objects.get(id=int(fin.split('=')[1])).board_id
                     fin = Board.objects.get(id=current_id).handleTurn("admin","test")
 
         
 
     if "add" in request.POST:
-        Sequence.objects.create(name=request.POST["add"], players=request.POST["players"],data=request.POST["data"])
+        Sequence.objects.create(name=request.POST["add"], players=request.POST["players"], settings=request.POST["settings"], data=request.POST["data"])
 
     for seq in Sequence.objects.all():
-        sequence_table += [[seq.id,  seq.name,seq.players, seq.data]]
+        sequence_table += [[seq.id,  seq.name,seq.players, seq.settings, seq.data]]
 
     for player in Player.objects.all():
         player_table += [[]]
@@ -255,7 +256,7 @@ def admin_view(request):
         "message" : message
     }
 
-    return render(request, "admin.html", view_context)
+    return render(request, "manage.html", view_context)
     
 def admin_observation_view(request):
     if "game_id" in request.GET:
@@ -296,3 +297,9 @@ def graph_view(request):
 
 def end_round_view(request):
     return render(request, "end_round.html", {"game_id": request.GET["game_id"]})
+
+def attach0_view(request):
+    return render(request, "attach0.html", {})
+
+def end_view(request):
+    return redirect("/survey/1")

@@ -1,5 +1,5 @@
 from django.db import models
-from algorithms.models import Algorithm, BLLL, Conscientious, Explorer
+from algorithms.models import Algorithm, BLLL, Conscientious, Explorer, Greedy
 import json 
 class Player(models.Model):
     IP = models.CharField(max_length = 100, null=False)

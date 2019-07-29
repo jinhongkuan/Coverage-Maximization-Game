@@ -15,17 +15,27 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.conf import settings
+from django.conf.urls import url, include
 from game.models import start_timer
-from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view 
+from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view, attach0_view, end_view
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', main_view, name='home'),
     path('game', game_view, name='game'),
     path('board', board_view, name='board'),
-    path('admin', admin_view, name='admin'),
+    path('manage', admin_view, name='adm'),
     path('adminview', admin_observation_view, name='observation'),
     path('graph', graph_view, name='graph'),
-    path('end_round', end_round_view, name='end round')
+    path('end_round', end_round_view, name='end round'),
+    path('end', end_view, name='end'),
+    path('survey/1/attach0', attach0_view, name='home'),
+    url(r'^survey/', include('survey.urls'))
+    
+    
 ]
 
-# start_timer()
+start_timer()
+'''
+
+'''
