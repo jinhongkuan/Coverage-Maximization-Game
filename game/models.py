@@ -9,7 +9,7 @@ import os
 from datetime import datetime, timezone, timedelta
 import csv
 from covmax.settings import STATIC_ROOT
-from covmax.constants import TURN_TIMER
+from covmax.constants import TURN_TIMER, timer_working, timer_stop
 import threading
 # Create your models here.
 
@@ -470,7 +470,7 @@ class Board(models.Model):
         total_covered_set = set()
         repeated_covered_set = []
         seq = Sequence.objects.get(id=(Game.objects.get(id=self.game_id).parsed_seq_data["id"]))
-        show_obstacles = seq.parsed_settings["map_knowledge"]
+        show_obstacles = seq.parsed_settings["map_knowledge"] == 'true'
         if caller == "admin":
             visible_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
             certain_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
@@ -661,8 +661,10 @@ def async_timer(timer_stop):
 
 
 def start_timer():
+    global timer_working
+    global timer_stop
     if Config.objects.get(main=True).timer_enabled:
-        timer_stop = threading.Event()
+        timer_working = True
         print("start timer")
         print(threading.active_count())
         async_timer(timer_stop)

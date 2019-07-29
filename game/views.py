@@ -6,7 +6,8 @@ from django.shortcuts import render, redirect
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseRedirect
 from player.models import Player
-from game.models import Board, Game, Sequence, Config, _create_game
+from game.models import Board, Game, Sequence, Config, _create_game, start_timer
+from covmax.constants import timer_working, timer_stop 
 import csv
 from covmax.settings import STATIC_ROOT
 import PIL, PIL.Image
@@ -201,7 +202,10 @@ def admin_view(request):
                     fin = Board.objects.get(id=current_id).handleTurn("admin","test")
                     continue
                 elif fin == "break" or fin == "end":
-                    break 
+                    break
+                elif fin == "error":
+                    message = "Error creating board"
+                    break  
                 else:
                     print("fin:" + str(fin))
                     current_id = Game.objects.get(id=int(fin.split('=')[1])).board_id
@@ -238,12 +242,19 @@ def admin_view(request):
                 else:
                     x = ip 
                 translated_players += [x]
-            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(translated_players), make_href("X", "admin?game_del="+str(game.id))]
+            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(translated_players), make_href("X", "manage?game_del="+str(game.id))]
         except ObjectDoesNotExist:
             pass
     main_config = Config.objects.get(main=True)
     if "modify_config" in request.POST:
-        main_config.timer_enabled = True if request.POST["timer_enabled"]=='true' else False
+        if request.POST["timer_enabled"]=='true':
+            if main_config.timer_enabled == False:
+                main_config.timer_enabled = True 
+                start_timer(timer_stop, timer_working)
+        else:
+            if main_config.timer_enabled == True:
+                main_config.timer_enabled = False 
+                timer_stop.set() 
         main_config.save()
 
     configuration_table['timer_enabled_true'] = 'checked' if main_config.timer_enabled else ''

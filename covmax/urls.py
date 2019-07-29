@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.conf import settings
+from covmax.constants import timer_working, timer_stop 
 from django.conf.urls import url, include
 from game.models import start_timer
 from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view, attach0_view, end_view
