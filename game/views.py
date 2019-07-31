@@ -90,7 +90,7 @@ def board_view(request):
         hist_request = -1 if "history" not in request.POST else int(request.POST["history"])
         view_context = {
             "cells" : player_board.getDisplayCells("admin", history=hist_request),
-            "message" : player_board.getMessage("admin", history=hist_request),
+            "message" : "" if "show_message" in request.POST and request.POST["show_message"] == "false" else player_board.getMessage("admin", history=hist_request),
             "map_name" : player_board.getName()
         }
         if player_board.parsed_needs_refresh["admin"]=="True":
@@ -310,7 +310,18 @@ def end_round_view(request):
     return render(request, "end_round.html", {"game_id": request.GET["game_id"]})
 
 def attach0_view(request):
-    return render(request, "attach0.html", {})
+    ip, _ = get_client_ip(request)
+    review_table = []
+    try:
+        player = Player.objects.get(IP=ip)
+        for game_id in player.all_game_ids.split(","):
+            if game_id != "":
+                review_table += [game_id]
+    except:
+        pass 
+
+    
+    return render(request, "attach0.html", {"review_table" : review_table})
 
 def end_view(request):
     return redirect("/survey/1")
