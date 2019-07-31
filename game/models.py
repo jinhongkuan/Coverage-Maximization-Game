@@ -389,7 +389,8 @@ class Board(models.Model):
                     agent = self.IP_Agent[callerIP]
                     break 
                 else:
-                    print("Error, action performed by non-existent player")
+                    print("Error, action performed by non-existent player " + str(callerIP))
+                    print("not in " + str(self.IP_Agent))
                     return False
         original_r, original_c = agent.r, agent.c
         action_parsed = json.loads(action)
