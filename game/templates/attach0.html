@@ -11,7 +11,7 @@
 <script>
 $(document).ready(function(){
     {% for game_id in review_table %}
-    $("#board_{{game_id}}").load("/board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}}, "show_message" : false });
+    $("#board_{{game_id}}").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}}, "show_message" : false });
     {% endfor %}
 });
 </script>

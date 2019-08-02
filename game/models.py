@@ -111,6 +111,7 @@ class Game(models.Model):
 
         if len(self.parsed_human_players) == max_players:
             self.ongoing = True
+            print("Set ongoing to true because " + str(self.parsed_human_players) + " contains " + str(max_players) + " players")
             self.available = False 
             self.start_time = datetime.now(timezone.utc)
             self.save()
@@ -631,7 +632,7 @@ def _create_game(seq_data_):
     print(new_game.parsed_seq_data)
     # new_game.saveState()
     new_game.make_board(read_map, map_name.split(".")[0])
-    if player.count("player") == 0:
+    if Sequence.objects.get(id=seq_data_["id"]).parsed_players.count("player") == 0:
         print("set ongoing to true")
         new_game.ongoing = True
         new_game.available = False
