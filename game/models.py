@@ -43,13 +43,14 @@ class Game(models.Model):
         self.parsed_human_players = json.loads(self.human_players)
 
     def make_board(self, load_map, map_name):
-
+        max_score = load_map[-1][0]
+        load_map = load_map[:-1]
         # Only accept rectangular maps
         assert([len(row) == len(load_map[0]) for row in load_map])
 
         map_width = len(load_map[0])
         map_height = len(load_map)
-        game_board = Board.objects.create(width=map_width,height=map_height,game_id=self.id,name=map_name)
+        game_board = Board.objects.create(width=map_width,height=map_height,game_id=self.id,name=map_name, optimal_score = max_score)
         game_board.load_map(load_map)
 
         # Create AI players
@@ -136,7 +137,7 @@ class Board(models.Model):
     name = models.TextField(null=False, default="")
     needs_refresh = models.TextField(null=False, default='{"admin":"True"}')
     locked = models.BooleanField(null=False, default=False)
-    
+    optimal_score = models.IntegerField(null=False, default=0)
     grid_type = {'-1': "grey-grid", '0': "white-grid", '1': "black-grid", '2': "singly-covered-grid", '3': "doubly-covered-grid", '4': 'uncertain-grid'}
 
     parsed_history = []
@@ -262,6 +263,9 @@ class Board(models.Model):
         self.locked = False 
         self.save()
 
+    def getOptimalScore(self):
+        return self.optimal_score
+
     def handleTurn(self, caller, action, force_next=False):
         redirect = ""
         my_game = Game.objects.get(id=self.game_id)
@@ -331,7 +335,7 @@ class Board(models.Model):
                     if new_game is None:
                         redirect = "error"
                     else:
-                        redirect = "end_round?game_id=" + str(new_game.id) 
+                        redirect = "end_round?game_id=" + str(new_game.id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore())
                 for player_ in self.parsed_needs_refresh:
                     self.parsed_needs_refresh[player_] = redirect
                 self.saveState()

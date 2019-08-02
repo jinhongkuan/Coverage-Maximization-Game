@@ -2,7 +2,8 @@
 {% block content_main %}
 
 <div class="center-page">
-<p style="text-align: center">Round finished, please press the button below to continue to the next map:</p>
+<p style="text-align: center">You and your teammates covered {{cells_covered}} out of the maximum of {{max_covered}} cells</p>
+<p style="text-align: center">Please press the button below to continue to the next map:</p>
 <form action="game" method="POST">
 <input name="game_id" value={{game_id}} hidden>
 <input name="command" value="Join Session" hidden>

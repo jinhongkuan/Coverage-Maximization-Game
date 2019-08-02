@@ -307,7 +307,7 @@ def graph_view(request):
         return HttpResponse("Error, please stipulate game id to observe")
 
 def end_round_view(request):
-    return render(request, "end_round.html", {"game_id": request.GET["game_id"]})
+    return render(request, "end_round.html", {"game_id": request.GET["game_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"]})
 
 def attach0_view(request):
     ip, _ = get_client_ip(request)
