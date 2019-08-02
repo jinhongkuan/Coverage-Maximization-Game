@@ -80,7 +80,10 @@
     {% endwith %}
     {% endwith %}
     
-    
+    <form action="/download" method="post">
+        {% csrf_token %}
+        <button type="submit" name="file" value="db.sqlite3">Download Database</button>
+    </form>
     
 </div>
 {% endblock %}

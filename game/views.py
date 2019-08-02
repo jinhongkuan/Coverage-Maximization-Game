@@ -325,3 +325,12 @@ def attach0_view(request):
 
 def end_view(request):
     return redirect("/survey/1")
+
+def download(request):
+    file_path = request.POST["file"]
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as fh:
+            response = HttpResponse(fh.read())
+            response['content_type'] = "application/download"
+            response['Content-Disposition'] = 'attachment; filename=' + os.path.basename(file_path)
+            return response

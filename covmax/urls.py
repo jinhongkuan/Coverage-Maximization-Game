@@ -19,7 +19,7 @@ from django.conf import settings
 from covmax.constants import timer_working, timer_stop 
 from django.conf.urls import url, include
 from game.models import start_timer
-from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view, attach0_view, end_view
+from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view, attach0_view, end_view, download
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', main_view, name='home'),
@@ -31,6 +31,7 @@ urlpatterns = [
     path('end_round', end_round_view, name='end round'),
     path('end', end_view, name='end'),
     path('survey/1/attach0', attach0_view, name='home'),
+    path('download', download, name='download'),
     url(r'^survey/', include('survey.urls'))
     
     

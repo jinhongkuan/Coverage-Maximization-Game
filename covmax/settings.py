@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'player',
     'algorithms',
     'bootstrapform',
-    'survey'
+    'survey',
+    'import_export'
 ]
 
 
