@@ -661,9 +661,7 @@ def async_timer(timer_stop):
         threading.Timer(1, async_timer, [timer_stop]).start()
 
 
-def start_timer():
-    global timer_working
-    global timer_stop
+def start_timer(timer_working, timer_stop):
     if Config.objects.get(main=True).timer_enabled:
         timer_working = True
         print("start timer")

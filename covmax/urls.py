@@ -30,14 +30,14 @@ urlpatterns = [
     path('graph', graph_view, name='graph'),
     path('end_round', end_round_view, name='end round'),
     path('end', end_view, name='end'),
-    path('survey/1/attach0', attach0_view, name='home'),
+    path('attach0', attach0_view, name='home'),
     path('download', download, name='download'),
     url(r'^survey/', include('survey.urls'))
     
     
 ]
 
-start_timer()
+start_timer(timer_working, timer_stop)
 '''
 
 '''
