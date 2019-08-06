@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
-{% block main_content %}
+{% block content_main %}
+
 <div class="center-page">
-    <p>This concludes the session, please review your experience of the game.</p>
+<p style="text-align: center">End of Phase 1. You will now be working with a differet set of agents.</p>
+<p style="text-align: center">Please press the button below to continue to the next map:</p>
+<form action="game" method="POST">
+<input name="game_id" value={{game_id}} hidden>
+<input name="command" value="Join Session" hidden>
+{% csrf_token %}
+<button type="submit">Submit</button>
+</form>
 </div>
 {% endblock %}

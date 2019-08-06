@@ -215,7 +215,7 @@ class Board(models.Model):
                                     self.neighbors[(r,c)] += [(dr, dc)] 
 
         self.parsed_score_history = json.loads(self.score_history)
-        if len(self.parsed_score_history) == 0:
+        if len(self.parsed_score_history) == 0 or self.getGlobalScore() == self.getOptimalScore():
             self.parsed_score_history += [self.getGlobalScore()]
 
         for player in self.IP_Agent:

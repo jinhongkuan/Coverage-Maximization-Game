@@ -171,7 +171,7 @@ def admin_view(request):
         id_to_remove = request.GET["del"]
         try:
             Sequence.objects.get(id=id_to_remove).delete() 
-            return HttpResponseRedirect("admin")
+            return HttpResponseRedirect("manage")
         except Exception as e:
             print(str(e))
 
@@ -179,7 +179,7 @@ def admin_view(request):
         id_to_remove = request.GET["game_del"]
         try:
             Game.objects.get(id=id_to_remove).delete() 
-            return HttpResponseRedirect("admin")
+            return HttpResponseRedirect("manage")
         except Exception as e:
             print(str(e))
 
@@ -208,8 +208,9 @@ def admin_view(request):
                     break  
                 else:
                     print("fin:" + str(fin))
-                    current_id = Game.objects.get(id=int(fin.split('=')[1])).board_id
+                    current_id = Game.objects.get(id=int(fin.split('=')[1].split('&')[0])).board_id
                     fin = Board.objects.get(id=current_id).handleTurn("admin","test")
+            redirect("/manage")
 
         
 
@@ -324,7 +325,26 @@ def attach0_view(request):
     return render(request, "attach0.html", {"review_table" : review_table})
 
 def end_view(request):
-    return redirect("/survey/1")
+    ip, _ = get_client_ip(request)
+    # check whether to redirect to next sequence or survey
+    try:
+        player_game = Game.objects.get(id=Player.objects.get(IP=ip).game_id)
+        seq = Sequence.objects.get(id=player_game.parsed_seq_data["id"])
+    except Exception as e:
+        print("End view error: " + str(e))
+    print(seq.parsed_settings)
+    if "next_seq" in seq.parsed_settings:
+
+        try:
+            next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
+        except ObjectDoesNotExist:
+            print("End view error: Next seq does not exist")
+        seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": player_game.parsed_seq_data["players"]}
+        new_game, msg = _create_game(seq_data)
+
+        return render(request, "end.html", {"game_id" : new_game.id})
+    else:
+        return redirect("/survey/1")
 
 def download(request):
     file_path = request.POST["file"]
