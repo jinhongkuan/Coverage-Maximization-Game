@@ -339,7 +339,17 @@ def end_view(request):
             next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
         except ObjectDoesNotExist:
             print("End view error: Next seq does not exist")
-        seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": player_game.parsed_seq_data["players"]}
+        # Update AI name
+        players = player_game.parsed_seq_data["players"]
+        ai_players = [x for x in players if "(" in x]
+        ai_players_new = [x for x in next_seq.parsed_players if x != "player"]
+        if len(ai_players) != len(ai_players_new):
+            print("End view error: AI counts mismatch")
+        for i in range(len(players)):
+            if "(" in players[i]:
+                players[i] = ai_players_new[0]
+                ai_players_new = ai_players_new[1:]
+        seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": players}
         new_game, msg = _create_game(seq_data)
 
         return render(request, "end.html", {"game_id" : new_game.id})
