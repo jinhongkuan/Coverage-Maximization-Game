@@ -37,7 +37,7 @@ def game_view(request):
             
             open_games = [x for x in open_games if len(Board.objects.filter(id=x.board_id)) == 1 and ip not in Board.objects.get(id=x.board_id).parsed_pending]
 
-            if len(open_games) == 0:
+            if True:
                 default_seq_name= "seq0"
                 fresh = True
                 seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
