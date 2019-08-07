@@ -22,6 +22,9 @@ def main_view(request):
 def game_view(request):
 
     ip, _ = get_client_ip(request)
+    if "decision" in request.POST: 
+        if request.POST["decision"] == "disagree":
+            return HttpResponseRedirect("/")
     try:
         player = Player.objects.get(IP=ip)
     except ObjectDoesNotExist:

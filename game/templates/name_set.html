@@ -9,13 +9,64 @@
     width: fit-content;
     height: fit-content;
 }
+
+pre {
+    margin-top: 200px;
+    padding: 10px;
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    border: 1px solid black;
+    font-size: 12px;
+}
 </style>
     <div class="center-page" >
-        <p>Name (for identification):</p>
-        <form  method="post" action="game">
+        <pre style="width:850px">
+<b>INFORMATION SHEET FOR RESEARCH</b>
+Designing a Computer Game for the Empirical Study of Human-Robot Collaboration
+
+You are invited to be in a research study of the dynamics of online collaboration where no explicit communication is allowed. You were selected as a possible participant because we believe that you have sufficient computer knowledge to effectively interact with the game utilized in this study. We ask that you read this form and ask any questions you may have before agreeing to be in the study.
+
+This study is being conducted by: Yasin Yazıcıoğlu, Department of Electrical and Computer Engineering, University of Minnesota
+
+Procedures:
+
+If you agree to be in this study, we would ask you to do the following things:
+You will play a short video game in which you will collaborate with robot players to achieve the game’s objective. The video game will take around 10 minutes to finish, after which you will then be asked to fill up a survey about your in-game experiences. You do not need to reveal any personal information in the process. Furthermore, for the accuracy of the results, certain details regarding the game are withheld from you. They will be revealed at the debriefing page after you have filled up the survey.  
+
+Confidentiality:
+
+The records of this study will be kept private. In any sort of report we might publish, we will not include any information that will make it possible to identify a subject. Furthermore, no personal data will be collected for the purpose of this study, ensuring the confidentiality of the participants. Research records will be stored securely and only researchers will have access to the records. 
+
+Voluntary Nature of the Study:
+
+Participation in this study is voluntary. Your decision whether or not to participate will not affect your current or future relations with the University of Minnesota. If you decide to participate, you are free to not answer any question or withdraw at any time without affecting those relationships. 
+
+Contacts and Questions:
+
+The researcher(s) conducting this study is (are): Yasin Yazıcıoğlu and Jin Hong Kuan. You may ask any questions you have now. If you have questions later, you are encouraged to contact them at 612-60-8454, kuan0019@umn.edu. To contact the advisor, reach out to 612-625-157, ayasin@umn.edu. 
+
+This research has been reviewed and approved by an IRB within the Human Research Protections Program (HRPP). To share feedback privately with the HRPP about your research experience, call the Research Participants’ Advocate Line at 612-625-1650 or go to https://research.umn.edu/units/hrpp/research-participants/questions-concerns. You are encouraged to contact the HRPP if:
+    
+●       Your questions, concerns, or complaints are not being answered by the research team.
+●       You cannot reach the research team.
+●       You want to talk to someone besides the research team.
+●       You have questions about your rights as a research participant.
+●       You want to get information or provide input about this research.
+
+
+You will be given a copy of this information to keep for your records.
+
+                
+        </pre>
+        <p style="text-align: center">Name (for identification):</p>
+        <form  style="text-align: center" method="post" action="game">
             {% csrf_token %}
-            <input name='name'>
-            <button type='submit'>Submit</button>
+            <input name='name'><br>
+            <button type='submit' name='decision' value='agree'>I Agree</button>
+            <button type='submit' name='decision' value='disagree'>I Disagree</button>
         </form>
     </div>
 
