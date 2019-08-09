@@ -327,7 +327,32 @@ class Board(models.Model):
                 seq = Sequence.objects.get(id=seq_data["id"])
                 new_index = seq_data["index"]+1
                 if new_index >= len(seq.parsed_data):
-                    redirect = "end"
+                    if "next_seq" in seq.parsed_settings:
+                        try:
+                            next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
+                        except ObjectDoesNotExist:
+                            print("End view error: Next seq does not exist")
+                        # Update AI name
+                        players = my_game.parsed_seq_data["players"]
+                        ai_players = [x for x in players if "(" in x]
+                        ai_players_new = [x for x in next_seq.parsed_players if x != "player"]
+                        if len(ai_players) != len(ai_players_new):
+                            print("End view error: AI counts mismatch")
+                        for i in range(len(players)):
+                            if "(" in players[i]:
+                                players[i] = ai_players_new[0]
+                                ai_players_new = ai_players_new[1:]
+                        seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": players}
+                        new_game, msg = _create_game(seq_data)
+                        for ply in Player.objects.all():
+                            if ply.game_id == self.game_id:
+                                ply.redirected_gameid = new_game.id 
+                                ply.save()
+                                print("player ", ply.id, " redirected_gameid: ", new_game.id)
+                        redirect = "end_round?game_id=-1"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore())
+                    else:
+                        redirect = "end_round?game_id=-2"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore())
+
                 else:
                     new_data = deepcopy(seq_data)
                     new_data["index"] = new_index

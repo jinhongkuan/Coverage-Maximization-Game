@@ -19,11 +19,11 @@
         <br><img src="static/highlight.PNG" style="width: 124px; height:124px; display:block; margin-left: auto; margin-right: auto">
         <br>7. <b>This is a cooperative game.</b> You and your teammates work together to cover as much space as possible
         <br>8. This game is time-based, and you may move your agent every <b>2</b> seconds
-        <br>9. There are 2 test-phases in this game, each consisting of 3 rounds. Your first round is a tutorial and will not be recorded
+        <br>9. There are 2 test-phases in this game, each consisting of 3 rounds. At the end of each test-phase, you will be given a survey. 
+        <br>10. Your first round is a tutorial and will not be recorded.
 </div>
 <form action="game" method="POST" style="text-align: center">
     {% csrf_token %}
     <input type="submit" name = "command" value="Start Session" />
-    <input type="submit" name = "command" value="Continue Session" />
 </form>
 {% endblock %}
