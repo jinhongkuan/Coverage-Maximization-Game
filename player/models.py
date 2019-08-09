@@ -7,7 +7,6 @@ class Player(models.Model):
     active = models.BooleanField(null=False)
     game_id = models.IntegerField(null=False, default=-1)
     all_game_ids = models.TextField(null=False, default="")
-    redirected_gameid = models.TextField(null=False, default="")
 
 class Agent(models.Model):
     token = models.TextField(null=False, default="tokens/token.png")

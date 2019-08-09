@@ -31,43 +31,46 @@ def game_view(request):
         player = Player.objects.create(IP=ip,active=True)
         print("Created new player with ip " + str(player.IP))
 
+    if "command" in request.POST:
+        if request.POST["command"] == "Start Session":
+            # Check if there are other available games
+            open_games = Game.objects.filter(available=True)
 
-    if "command" in request.POST and request.POST["command"] == "Start Session":
-        # Check if there are other available games
-        open_games = Game.objects.filter(available=True)
-
-        # Remove games initiated by this player
-        
-        open_games = [x for x in open_games if len(Board.objects.filter(id=x.board_id)) == 1 and ip not in Board.objects.get(id=x.board_id).parsed_pending]
-
-        default_seq_name= "seq0"
-        fresh = True
-        seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
-        new_game, msg = _create_game(seq_data)
-        if new_game is None:
-            render(request, "error.html", {"error_code": msg})
-        else:
-            new_game.add_player(player)
+            # Remove games initiated by this player
             
+            open_games = [x for x in open_games if len(Board.objects.filter(id=x.board_id)) == 1 and ip not in Board.objects.get(id=x.board_id).parsed_pending]
 
-        
-        player.save()
+            if True:
+                default_seq_name= "seq0"
+                fresh = True
+                seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
+                new_game, msg = _create_game(seq_data)
+                if new_game is None:
+                    render(request, "error.html", {"error_code": msg})
+                else:
+                    new_game.add_player(player)
+                
+
+            else:
+                # TEMP - Pick the oldest open game
+                game = open_games[0]
+                parsed_pending = json.loads(Board.objects.get(id=game.board_id).pending)
+                game.add_player(player)                    
+                player.game_id = game.id 
+                player.all_game_ids += str(game.id) + ","
             
-
-    elif "command" in request.POST and request.POST["command"] == "Join Session" or "join" in request.GET:
-        if "game_id" in request.POST:
-            game_id = request.POST["game_id"]
-        else:
-            game_id = player.redirected_gameid
-            player.redirected_gameid = ""
             player.save()
-        print(game_id)
-        if int(game_id) == -1:
-            return HttpResponseRedirect("survey/1")
-        elif int(game_id) == -2:
-            return HttpResponseRedirect("survey/2")
-        game = Game.objects.get(id=game_id)
-        game.add_player(player)
+                
+        elif request.POST["command"] == "Continue Session":  
+            if player.game_id == -1:
+                return main_view(request)
+            else:
+                pass
+
+        elif request.POST["command"] == "Join Session":
+            game_id = request.POST["game_id"]
+            game = Game.objects.get(id=game_id)
+            game.add_player(player)
           
  
     
@@ -307,20 +310,8 @@ def graph_view(request):
     else:
         return HttpResponse("Error, please stipulate game id to observe")
 
-def post_survey_view(request, **kwargs):
-    ip, _ = get_client_ip(request)
-    try:
-        player = Player.objects.get(IP=ip)
-    except:
-        pass 
-    if player.redirected_gameid != "":
-        return HttpResponseRedirect("/game?join=1")
-    else:
-        return render(request, "debrief.html")
-
 def end_round_view(request):
     return render(request, "end_round.html", {"game_id": request.GET["game_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"]})
-
 
 def attach0_view(request):
     ip, _ = get_client_ip(request)
@@ -340,40 +331,33 @@ def end_view(request):
     ip, _ = get_client_ip(request)
     # check whether to redirect to next sequence or survey
     try:
-        player = Player.objects.get(IP=ip)
-        player_game = Game.objects.get(id=player.game_id)
+        player_game = Game.objects.get(id=Player.objects.get(IP=ip).game_id)
         seq = Sequence.objects.get(id=player_game.parsed_seq_data["id"])
     except Exception as e:
         print("End view error: " + str(e))
     print(seq.parsed_settings)
     if "next_seq" in seq.parsed_settings:
-        if player.redirected_gameid == "end":
-            try:
-                next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
-            except ObjectDoesNotExist:
-                print("End view error: Next seq does not exist")
-            # Update AI name
-            players = player_game.parsed_seq_data["players"]
-            ai_players = [x for x in players if "(" in x]
-            ai_players_new = [x for x in next_seq.parsed_players if x != "player"]
-            if len(ai_players) != len(ai_players_new):
-                print("End view error: AI counts mismatch")
-            for i in range(len(players)):
-                if "(" in players[i]:
-                    players[i] = ai_players_new[0]
-                    ai_players_new = ai_players_new[1:]
-            seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": players}
-            new_game, msg = _create_game(seq_data)
-            for ply in Player.objects.all():
-                if ply.game_id == player.game_id:
-                    ply.redirected_gameid = new_game.id 
-                    ply.save()
 
-        return redirect("/survey/1")
+        try:
+            next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
+        except ObjectDoesNotExist:
+            print("End view error: Next seq does not exist")
+        # Update AI name
+        players = player_game.parsed_seq_data["players"]
+        ai_players = [x for x in players if "(" in x]
+        ai_players_new = [x for x in next_seq.parsed_players if x != "player"]
+        if len(ai_players) != len(ai_players_new):
+            print("End view error: AI counts mismatch")
+        for i in range(len(players)):
+            if "(" in players[i]:
+                players[i] = ai_players_new[0]
+                ai_players_new = ai_players_new[1:]
+        seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": players}
+        new_game, msg = _create_game(seq_data)
+
+        return render(request, "end.html", {"game_id" : new_game.id})
     else:
-        player.redirect_gameid = "debrief"
-        player.save()
-        return redirect("/survey/2")
+        return redirect("/survey/1")
 
 def download(request):
     file_path = request.POST["file"]
