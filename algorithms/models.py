@@ -22,6 +22,7 @@ class BLLL(Algorithm):
         self.name = "BLLL_" + str(agent.id)
         self.exploration_term = exploration_term
         self.poisson_rate = poisson_rate
+        
 
     @classmethod 
     def poisson(cls, rate, duration):
@@ -45,8 +46,13 @@ class BLLL(Algorithm):
         repeated = set(repeated)
 
         position = (self.agent.r, self.agent.c)
-
-        if random.random() > BLLL.poisson(self.poisson_rate, 1):
+        if len(self.agent.parsed_memory) == 0:
+            self.agent.parsed_memory += [0]
+        stationary = int(self.agent.parsed_memory[0])
+        if random.random() > BLLL.poisson(self.poisson_rate, stationary):
+            stationary += 1 
+            self.agent.parsed_memory = [stationary]
+            self.agent.saveState()
             return json.dumps(position)
 
         action = random.choice(list(getCoveredSet(position, self.agent.movement, neighbors)-set([position])))
@@ -55,12 +61,18 @@ class BLLL(Algorithm):
         covered_set_beta = set([action] + neighbors[action])
         marginal_covered_set_beta = covered_set_beta - covered
        
-        alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
-        beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
-        if random.uniform(0,1) <= alpha/(alpha+beta):
-            action = position
+        if self.exploration_term == 999:
+            if len(marginal_covered_set_alpha) >= len(marginal_covered_set_beta):
+                action = position
+        else:
+            alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
+            beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
+            if random.uniform(0,1) <= alpha/(alpha+beta):
+                action = position
 
-
+        stationary = 0
+        self.agent.parsed_memory = [stationary]
+        self.agent.saveState()
         return json.dumps(action)
 
 class Greedy(Algorithm):
