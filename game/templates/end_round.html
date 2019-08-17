@@ -1,14 +1,37 @@
 {% extends 'base.html' %}
 {% block content_main %}
+<script>
+    $(document).ready(function(){
+        $("#board_preview").load("board_gif?game_id={{prev_game_id}}", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")});
+    });
+</script>
+<style>
+li {
+    display: inline-block;
+}
+body {
+    overflow: auto;
+}
+</style>
 
-<div class="center-page">
-<p style="text-align: center">You and your teammates covered {{cells_covered}} out of the maximum of {{max_covered}} cells</p>
-<p style="text-align: center">Please press the button below to continue to the next map:</p>
+<div class="center-page" >
+
+<div id="board_preview" style="max-height: 1000px; max-width:500px; margin-top:350px; text-align: center"></div>
+<p style="text-align: center">You and your teammates covered {{cells_covered}} out of the maximum of {{max_covered}} cells</p>    
+<h3>Team Performance Questionnaire:</h3>
 <form action="game" method="POST">
 <input name="game_id" value={{game_id}} hidden>
 <input name="command" value="Join Session" hidden>
+<input name="prev_game_id" value={{prev_game_id}} hidden>
 {% csrf_token %}
-<button type="submit">Submit</button>
-</form>
+{{questionnaire_form}}
+<div style="text-align: center">
+        <input type="submit" value="Next round">
 </div>
+
+</form>
+
+</div>
+
+
 {% endblock %}

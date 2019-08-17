@@ -19,7 +19,7 @@ from django.conf import settings
 from covmax.constants import timer_working, timer_stop 
 from django.conf.urls import url, include
 from game.models import start_timer
-from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view, attach0_view, end_view, download, post_survey_view
+from game.views import game_view, board_view, main_view, admin_view, admin_observation_view, graph_view, end_round_view, attach0_view, end_view, download, post_survey_view, board_gif
 from survey.views import ConfirmView, IndexView, SurveyCompleted, SurveyDetail
 
 '''
@@ -48,6 +48,7 @@ urlpatterns = [
     path('end', end_view, name='end'),
     path('attach0', attach0_view, name='home'),
     path('download', download, name='download'),
+    path('board_gif', board_gif, name='board_gif'),
     re_path(r"^survey/(?P<id>\d+)/", SurveyDetail.as_view(), name="survey-detail"),
     re_path(r"^survey/confirm/(?P<uuid>\w+)/", post_survey_view, name="survey-confirmation"),
 

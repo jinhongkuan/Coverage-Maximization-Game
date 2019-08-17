@@ -14,6 +14,8 @@ import PIL, PIL.Image
 from io import BytesIO, StringIO
 import plotly
 import plotly.graph_objects as go 
+from customsurvey.forms import TeamEvalForm
+from customsurvey.models import TeamEvalSurveyData
 def main_view(request):
 
     return render(request, "main.html")
@@ -31,7 +33,20 @@ def game_view(request):
         player = Player.objects.create(IP=ip,active=True)
         print("Created new player with ip " + str(player.IP))
 
-
+    # Check to see if any survey data is posted 
+    form = TeamEvalForm(request.POST)
+    if form.is_valid():
+        TeamEvalSurveyData.objects.create(difficulty=request.POST["difficulty"],\
+            satisfaction=request.POST["satisfaction"],\
+            collaboration=request.POST["collaboration"],\
+            confusion=request.POST["confusion"],\
+            contribution=request.POST["contribution"],\
+            interaction=request.POST["interaction"],\
+            isolation=request.POST["isolation"],\
+            activity=request.POST["activity"],\
+            understanding=request.POST["understanding"],\
+            intelligence=request.POST["intelligence"],\
+            game_id=request.POST["prev_game_id"])
     if "command" in request.POST and request.POST["command"] == "Start Session":
         # Check if there are other available games
         open_games = Game.objects.filter(available=True)
@@ -63,9 +78,11 @@ def game_view(request):
             player.save()
         print(game_id)
         if int(game_id) == -1:
-            return HttpResponseRedirect("survey/1")
+            pass
+            # return HttpResponseRedirect("survey/1")
         elif int(game_id) == -2:
-            return HttpResponseRedirect("survey/2")
+            return render(request, "debrief.html")
+            # return HttpResponseRedirect("survey/2")
         game = Game.objects.get(id=game_id)
         game.add_player(player)
           
@@ -146,7 +163,8 @@ def board_view(request):
             "cells" : player_board.getDisplayCells(player),
             "message" : player_board.getMessage(player),
             "map_name" : player_board.getName(),
-            "redirect" : redirect
+            "redirect" : redirect,
+            "show_message" : 1 if "hide_message" not in request.POST else 0
         }
 
         if player_board.parsed_needs_refresh[player.IP]=="True":
@@ -192,7 +210,7 @@ def admin_view(request):
             seq_data = {"index": 0, "id": id_to_test, "token_assignment":[], "players": []}
             new_game, msg = _create_game(seq_data)
             if new_game is None:
-                render(request, "error.html", {"error_code": msg})
+                return render(request, "error.html", {"error_code": msg})
 
             # Resolve all-bot games
             fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
@@ -208,7 +226,18 @@ def admin_view(request):
                     break  
                 else:
                     print("fin:" + str(fin))
-                    current_id = Game.objects.get(id=int(fin.split('=')[1].split('&')[0])).board_id
+                    g_id = int(fin.split('=')[1].split('&')[0])
+                    if g_id == -1 or g_id == -2:
+                        # Temporary hack 
+                        seq_data = {"index": 0, "id": id_to_test, "token_assignment":[], "players": []}
+                        new_game, msg = _create_game(seq_data)
+                        if new_game is None:
+                            return render(request, "error.html", {"error_code": msg})
+                        fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
+                        current_id = new_game.board_id
+                    else:
+                        current_id = Game.objects.get(id=g_id).board_id
+                    
                     fin = Board.objects.get(id=current_id).handleTurn("admin","test")
             redirect("/manage")
 
@@ -243,7 +272,11 @@ def admin_view(request):
                 else:
                     x = ip 
                 translated_players += [x]
-            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(translated_players), make_href("X", "manage?game_del="+str(game.id))]
+            try:
+                survey_data = TeamEvalSurveyData.objects.get(game_id=game.id).pretty_print()
+            except:
+                survey_data = ""
+            game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(translated_players), "{:0.2f}".format(sum(corresponding_board.parsed_score_history)/len(corresponding_board.parsed_score_history)), survey_data , make_href("X", "manage?game_del="+str(game.id))]
         except ObjectDoesNotExist:
             pass
     main_config = Config.objects.get(main=True)
@@ -256,10 +289,12 @@ def admin_view(request):
             if main_config.timer_enabled == True:
                 main_config.timer_enabled = False 
                 timer_stop.set() 
+        main_config.snapshot_interval = request.POST["snapshot_interval"]
         main_config.save()
 
     configuration_table['timer_enabled_true'] = 'checked' if main_config.timer_enabled else ''
     configuration_table['timer_enabled_false'] = 'checked' if not main_config.timer_enabled else ''
+    configuration_table['snapshot_interval'] = main_config.snapshot_interval
     view_context = {
         "player_table" : player_table,
         "game_table" : game_table,
@@ -281,6 +316,7 @@ def graph_view(request):
     if "game_id" in request.POST:
         player_board = Board.objects.get(id=Game.objects.get(id=request.POST["game_id"]).board_id)
         score_history = player_board.parsed_score_history
+        print("avg: ", sum(score_history)/len(score_history))
         fig = go.Figure(data=[go.Scatter(y=score_history)])
         fig.update_layout(height=600,xaxis=go.layout.XAxis(
         title=go.layout.xaxis.Title(
@@ -319,7 +355,7 @@ def post_survey_view(request, **kwargs):
         return render(request, "debrief.html")
 
 def end_round_view(request):
-    return render(request, "end_round.html", {"game_id": request.GET["game_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"]})
+    return render(request, "end_round.html", {"game_id": request.GET["game_id"], "prev_game_id" : request.GET["pg_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"], "questionnaire_form": TeamEvalForm()})
 
 
 def attach0_view(request):
@@ -383,3 +419,12 @@ def download(request):
             response['content_type'] = "application/download"
             response['Content-Disposition'] = 'attachment; filename=' + os.path.basename(file_path)
             return response
+
+def board_gif(request):
+    game_id = request.GET["game_id"]
+    index = []
+    history = Board.objects.get(id=Game.objects.get(id=game_id).board_id).parsed_history
+    for i,c in enumerate(history):
+        if c is not None and i != len(history)-1:
+            index += [len(index)+1]
+    return render(request, "board_gif.html", {"game_id": game_id, "board_history": index})

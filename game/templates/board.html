@@ -71,9 +71,11 @@
     }
     </style>
     <br>
+{% if show_message %}
 <div class="board-message">-- {{map_name}} --<br>{{message|safe}}</div>
 <script>
     $(".board-message").width($(".grid-container").width());
     $(".board-message").css("text-align", "center");
  
     </script>
+{% endif %}

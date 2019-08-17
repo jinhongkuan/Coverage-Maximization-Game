@@ -25,6 +25,9 @@
                 <th>map</th>
                 <th>players</th>
                 <th>turns</th>
+                <th>settings</th>
+                <th>average</th>
+                <th>survey</th>
                 <th>options</th>
             </tr>
             {% for row in game_table %}
@@ -75,6 +78,7 @@
         {% csrf_token %}
         <input type="radio" name="timer_enabled" value="true" {{timer_enabled_true}}>Enable Timer<br>
         <input type="radio" name="timer_enabled" value="false" {{timer_enabled_false}}>Disable Timer<br>
+        <input type="input" name="snapshot_interval" value="{{config_table.snapshot_interval}}">
         <button type="submit" name="modify_config">Save Changes</button>
     </form>
     {% endwith %}

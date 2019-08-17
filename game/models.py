@@ -349,9 +349,10 @@ class Board(models.Model):
                                 ply.redirected_gameid = new_game.id 
                                 ply.save()
                                 print("player ", ply.id, " redirected_gameid: ", new_game.id)
-                        redirect = "end_round?game_id=-1"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore())
+                        # redirect = "end_round?game_id=-1"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
+                        redirect = "end_round?game_id=" + str(new_game.id) + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
                     else:
-                        redirect = "end_round?game_id=-2"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore())
+                        redirect = "end_round?game_id=-2"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
 
                 else:
                     new_data = deepcopy(seq_data)
@@ -360,7 +361,7 @@ class Board(models.Model):
                     if new_game is None:
                         redirect = "error"
                     else:
-                        redirect = "end_round?game_id=" + str(new_game.id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore())
+                        redirect = "end_round?game_id=" + str(new_game.id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
                 for player_ in self.parsed_needs_refresh:
                     self.parsed_needs_refresh[player_] = redirect
                 self.saveState()
@@ -518,12 +519,14 @@ class Board(models.Model):
                 repeated_covered_set += list(x)
         else:
             snapshots = 0
+            print("old history")
             for i in range(len(self.parsed_history)):
                 if self.parsed_history[i] != None:
                     snapshots+= 1
                     if snapshots == history:
                         snapshot = self.parsed_history[i]
                         history = i
+                        print("snapshot: ", str(snapshot))
                         for agent_ip in snapshot:
 
                             x = self.getCoveredSet(tuple(snapshot[agent_ip]), self.IP_Agent[agent_ip].coverage, self.neighbors)
@@ -532,6 +535,8 @@ class Board(models.Model):
                         break 
         for element in total_covered_set:
             repeated_covered_set.remove(element)
+        print(caller)
+        
         repeated_covered_set = set(repeated_covered_set)
         for r in range(self.height):
             for c in range(self.width):
@@ -543,16 +548,15 @@ class Board(models.Model):
                         val = "-1"
                 else:
                     if self.grid[r][c] == "0":
-                        if key in repeated_covered_set:
-                            val = "3"
-                        elif key in total_covered_set and key in certain_set:
-                            val = "2"
-                        elif key in total_covered_set and key not in certain_set:
-                            val = "2"
-                        elif key not in total_covered_set and key in certain_set:
-                            val = "0"
-                        elif key not in total_covered_set and key not in certain_set:
+                        if key not in certain_set:
                             val = "4"
+                        elif key in repeated_covered_set:
+                            val = "3"
+                        elif key in total_covered_set:
+                            val = "2"
+                        else:
+                            val = "0"
+                  
                     else:
                         val = "1"
                 content = ""

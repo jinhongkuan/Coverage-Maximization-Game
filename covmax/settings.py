@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'algorithms',
     'bootstrapform',
     'survey',
-    'import_export'
+    'import_export',
+    'customsurvey'
 ]
 
 

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content_main %}
+<script>
+    window.hcount = 0;
+    window.hist = undefined;
+    $(document).ready(function()
+    {
+        window.hist = new Array();
+        {% for index in board_history %}
+        $("#board_{{index}}").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value"), "admin": true, "game_id": {{game_id}}, history: {{index}} , "hide_message":1});
+        $("#board_{{index}}").hide();
+        window.hist.push({{index}});
+        {% endfor %}
+        setInterval(play, 1000);
+    });
+    
+    function play()
+    {
+        prev = window.hcount
+        window.hcount = (window.hcount + 1) % window.hist.length;
+        $("#board_" + window.hist[prev]).hide();
+        $("#board_" + window.hist[window.hcount]).show(); 
+        console.log("show " + window.hist[window.hcount]);
+        
+    }
+</script>
+{% csrf_token %}
+<div id="boardgif_{{game_id}}">
+    {% for index in board_history %}
+    <div id="board_{{index}}">
+
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
