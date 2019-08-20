@@ -273,6 +273,14 @@ class Board(models.Model):
             print("Game has yet to be started")
             return "break" 
         
+        # Fail-safe check
+        if None in self.parsed_pending.values():
+            for agent in self.parsed_pending:
+                if self.parsed_pending[agent] == None and "_" in agent:
+                    print("Fail-safe activated")
+                    self.updateAI()
+                    break
+
         if caller != "admin":
             if caller.IP not in self.parsed_pending:
                 print("Error, player not supposed to be playing on this board")
