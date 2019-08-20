@@ -49,12 +49,7 @@ class BLLL(Algorithm):
         if len(self.agent.parsed_memory) == 0:
             self.agent.parsed_memory += [0]
         stationary = int(self.agent.parsed_memory[0])
-        if random.random() > BLLL.poisson(self.poisson_rate, stationary):
-            stationary += 1 
-            self.agent.parsed_memory = [stationary]
-            self.agent.saveState()
-            return json.dumps(position)
-
+   
         action = random.choice(list(getCoveredSet(position, self.agent.movement, neighbors)-set([position])))
         covered_set_alpha = set([position] + neighbors[position])
         marginal_covered_set_alpha = covered_set_alpha - covered 
@@ -218,8 +213,7 @@ class Explorer(Algorithm):
         repeated = set(repeated)
 
         position = (self.agent.r, self.agent.c)
-        if random.random() > BLLL.poisson(self.poisson_rate, 1):
-            return json.dumps(position)
+
         visible_tiles = getCoveredSet(position, self.agent.sight, neighbors)
         connected_tiles = getCoveredSet(position, self.agent.sight, connected)
         visible_walls = visible_tiles - connected_tiles
@@ -345,8 +339,7 @@ class Explora(Algorithm):
             covered = covered.union(territory)
 
         position = (self.agent.r, self.agent.c)
-        if random.random() > BLLL.poisson(self.poisson_rate, 1):
-            return json.dumps(position)
+     
 
         if len(self.agent.parsed_memory) == 0:
             self.agent.parsed_memory += [{}]
