@@ -21,8 +21,8 @@
         <br>8. There are 10 rounds in this game. At the end of each round, you will be given a quick survey. 
         <br>9. Your first round is a tutorial and will not be recorded.
 </div>
-<form action="pretest" method="POST" style="text-align: center">
+<form action="game" method="POST" style="text-align: center">
     {% csrf_token %}
-    <input type="submit" name = "command"/>
+    <input type="submit" name = "command" value="Start Session"/>
 </form>
 {% endblock %}

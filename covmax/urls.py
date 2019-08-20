@@ -56,7 +56,7 @@ urlpatterns = [
     
 ]
 
-#start_timer(timer_working, timer_stop)
+start_timer(timer_working, timer_stop)
 '''
 
 '''

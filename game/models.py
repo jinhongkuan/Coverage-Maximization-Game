@@ -74,6 +74,8 @@ class Game(models.Model):
         self.board_id = game_board.id
         self.saveState() 
 
+        return game_board
+
         
     def add_player(self, player):
         max_players = Sequence.objects.get(id=self.parsed_seq_data["id"]).parsed_players.count("player")
@@ -146,7 +148,6 @@ class Board(models.Model):
     parsed_needs_refresh = {}
     IP_Player = {}
     IP_Agent = {}
-    id_pool = None 
     grid = None
     cells = {}
     neighbors = {}
@@ -166,9 +167,6 @@ class Board(models.Model):
         self.saveState() 
 
     def initialize(self):
-
-        self.id_pool = list(range(100))
-
         self.parsed_history = json.loads(self.history)
         if len(self.parsed_history) == 0:
             self.grid = []
@@ -176,14 +174,10 @@ class Board(models.Model):
             self.grid = deepcopy(self.parsed_history[-1])
           
         parsed_agents = json.loads(self.agents)
-
+        
         self.IP_Agent = {}
         for agent in parsed_agents:
             self.IP_Agent[agent] = Agent.objects.get(id=parsed_agents[agent])
-            if self.IP_Agent[agent].algo_instance is not None:
-                if int(agent.split('_')[1]) in self.id_pool:
-                    self.id_pool.remove(int(agent.split('_')[1]))
-
 
         self.parsed_needs_refresh = json.loads(self.needs_refresh)
 
@@ -223,6 +217,7 @@ class Board(models.Model):
 
 
     def add_player(self, caller, row, col, token_, settings):
+        print("add player called ", str(caller))
         if caller.IP not in self.parsed_pending:
             self.parsed_pending[caller.IP] = None 
             new_agent = Agent.objects.create(r=row,c=col,token=token_, coverage=settings["coverage"], sight=settings["sight"], movement=settings["movement"])
@@ -236,6 +231,7 @@ class Board(models.Model):
         # An AI is controlled by the algo_instance of an agent
         new_agent = Agent.objects.create(r=row,c=col,token=token_, algorithm=recipe, coverage=settings["coverage"], sight=settings["sight"], movement=settings["movement"])
         new_agent.save()
+        
         agent_name = new_agent.algo_instance.__class__.__name__ + "_" + str(new_agent.id)
     
         self.parsed_pending[agent_name] = None 
@@ -243,48 +239,52 @@ class Board(models.Model):
         print("AI " + str(agent_name) + " has joined the board")
         self.saveState()
 
+
     def updateAI(self):
-        # Temporary fix for None id problem
-        self.locked = True 
-        self.save()
+        print("called")
+        print("agents (before updateAI): ",self.agents)
         for agent_ip in self.IP_Agent:
             if self.IP_Agent[agent_ip].algo_instance is not None and self.parsed_pending[agent_ip] is None:
                 exceed_limit = True
                 for i in range(AI_MAX_ATTEMPT):
                     
                     action = self.IP_Agent[agent_ip].algo_instance.computeNext(self.generateState(self.IP_Agent[agent_ip]))
-                    viable = self.attemptAction(self.IP_Agent[agent_ip].algo_instance.name, action, test=True)
+                    viable = self.attemptAction(agent_ip, action, test=True)
                     if viable:
+                        print(agent_ip, " has moved")
+                        self.parsed_pending[agent_ip] = action
                         exceed_limit = False
                         break
                 if exceed_limit:
-                    self.attemptAction(self.IP_Agent[agent_ip].algo_instance.name, json.dumps((self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c)), test=True)
+                    self.parsed_pending[agent_ip] = json.dumps((self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c))
                     print("Error, " + self.IP_Agent[agent_ip].algo_instance.name + " was unable to decide on next action")
-        self.locked = False 
-        self.save()
+
+        self.saveState()
 
     def getOptimalScore(self):
         return self.optimal_score
 
     def handleTurn(self, caller, action, force_next=False):
+        print("next")
         redirect = ""
         my_game = Game.objects.get(id=self.game_id)
         should_continue = True
         if not my_game.ongoing:
             print("Game has yet to be started")
             return "break" 
-
-        # HACK - bug fix
-        if None in self.parsed_pending.values():
-            self.updateAI()
-        
         
         if caller != "admin":
             if caller.IP not in self.parsed_pending:
                 print("Error, player not supposed to be playing on this board")
-                return ""
+                return "error"
             if not force_next and self.attemptAction(caller.IP, action, test=True):
-                self.parsed_pending[caller.IP] = action
+
+                # Only accept moves when it is the player's turn
+                if self.parsed_pending[caller.IP] == None:
+                    self.parsed_pending[caller.IP] = action
+                else: 
+                    print("Not the player's turn")
+                
 
         all_done = True
         for player in self.parsed_pending:
@@ -293,12 +293,19 @@ class Board(models.Model):
                 print(player + " has not finished")
                 break 
         all_done = all_done or force_next
-        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled and action=="tick"):
+
+        # Modified to fit sequential
+        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled and all_done):
             # Execute all pending actions
             for player in self.parsed_pending:
                 if self.parsed_pending[player] is not None:
                     self.attemptAction(player, self.parsed_pending[player], test=False)
-                self.parsed_pending[player] = None
+                else:
+                    self.parsed_pending[player] = json.dumps((self.IP_Agents[player].r,self.IP_Agents[player].c))
+                # self.parsed_pending[player] = None
+            # Sequential mechanism
+            self.parsed_pending[random.choice(list(self.parsed_pending.keys()))] = None
+            
             for player in self.parsed_needs_refresh:
                 if self.parsed_needs_refresh[player] == "False":
                     print("set " + player + " to true")
@@ -407,22 +414,10 @@ class Board(models.Model):
         try:
             agent=self.IP_Agent[callerIP]
         except KeyError:
-            for agent in self.IP_Agent:
-                if self.IP_Agent[agent].algo_instance is not None and self.IP_Agent[agent].algo_instance.name == callerIP:
-                    self.IP_Agent[callerIP] = self.IP_Agent[agent]
-                    self.IP_Agent.pop(agent) 
-                    if agent in self.parsed_pending:
-                        self.parsed_pending[callerIP] = self.parsed_pending[agent]
-                        self.parsed_pending.pop(agent)
-                    else:
-                        self.parsed_pending[callerIP] = None
-                    
-                    agent = self.IP_Agent[callerIP]
-                    break 
-                else:
-                    print("Error, action performed by non-existent player " + str(callerIP))
-                    print("not in " + str(self.IP_Agent))
-                    return False
+
+            # print("Error, action performed by non-existent player " + str(callerIP))
+            # print("not in " + str(self.IP_Agent))
+            return False
         original_r, original_c = agent.r, agent.c
         action_parsed = json.loads(action)
         dr, dc = action_parsed
@@ -486,7 +481,7 @@ class Board(models.Model):
         # Assumes this is a human player
         callerIP = caller.IP  
         output = ""
-        output += "-- {0} --".format()
+     
         if Game.objects.get(id=self.game_id).available:
             output += "Waiting for more player(s).."
         elif self.parsed_pending[callerIP] is None:
@@ -671,13 +666,17 @@ def _create_game(seq_data_):
     print("Created new game(" + str(new_game.id) + ")")
     print(new_game.parsed_seq_data)
     # new_game.saveState()
-    new_game.make_board(read_map, map_name.split(".")[0])
+    
     if Sequence.objects.get(id=seq_data_["id"]).parsed_players.count("player") == 0:
         print("set ongoing to true")
         new_game.ongoing = True
         new_game.available = False
         new_game.parsed_seq_data["players"]=list(Board.objects.get(id=new_game.board_id).parsed_pending.keys())
-        new_game.save()
+    
+    new_game.saveState()
+    new_board = new_game.make_board(read_map, map_name.split(".")[0])
+    new_board.updateAI()
+    print("agents (after update AI): ",Board.objects.get(id=new_game.board_id).agents)
     return (new_game, "")
 
 class Config(models.Model):

@@ -59,11 +59,13 @@ def game_view(request):
         fresh = True
         seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
         new_game, msg = _create_game(seq_data)
+        print("agents: ",Board.objects.get(id=new_game.board_id).agents)
         if new_game is None:
             render(request, "error.html", {"error_code": msg})
         else:
             new_game.add_player(player)
-            
+        print("agents: ",Board.objects.get(id=new_game.board_id).agents)
+
 
         
         player.save()
@@ -154,7 +156,7 @@ def board_view(request):
             click_data = eval(click_data)
             redirect = player_board.handleTurn(player, json.dumps(click_data))
             if redirect == "continue":
-                raise Exception # Not supposed to auto-resolve when there are players 
+                redirect = ""
             elif redirect == "break":
                 redirect = ""
                     
