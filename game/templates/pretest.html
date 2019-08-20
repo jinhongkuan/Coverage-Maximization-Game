@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content_main %}
+<style>
+li {
+    margin-top: 5px;
+}
+</style>
+<div class='center-page'>
+    <b style='text-align: center'>To avoid confusion, the quizzes below are provided to ascertain that you have understood the premise of the game.<br>Please refer to <a href='/'>Instructions</a> if you are unsure about the correct answers.</b>
+    <p style='text-align: center'>{{message|safe}}</p>
+    <form method='POST'>
+        {% csrf_token %}
+        {{quiz_form}}
+        <div style='text-align: center'>
+            <input type='submit'>
+        </div>
+    </form>    
+</div>
+{% endblock %}

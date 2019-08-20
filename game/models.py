@@ -486,6 +486,7 @@ class Board(models.Model):
         # Assumes this is a human player
         callerIP = caller.IP  
         output = ""
+        output += "-- {0} --".format()
         if Game.objects.get(id=self.game_id).available:
             output += "Waiting for more player(s).."
         elif self.parsed_pending[callerIP] is None:
@@ -584,6 +585,12 @@ class Board(models.Model):
     def getGraphData(self):
         pass 
 
+    def getScore(average=True):
+        if average:
+            return sum(self.parsed_score_history)/len(self.parsed_score_history)
+        else:
+            return self.parsed_score_history[-1]
+            
     def getGlobalScore(self):
         total_covered_set = set()
         for agent_ip in self.IP_Agent:

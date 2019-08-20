@@ -14,7 +14,7 @@ import PIL, PIL.Image
 from io import BytesIO, StringIO
 import plotly
 import plotly.graph_objects as go 
-from customsurvey.forms import TeamEvalForm
+from customsurvey.forms import TeamEvalForm, QuizForm
 from customsurvey.models import TeamEvalSurveyData
 def main_view(request):
 
@@ -215,6 +215,7 @@ def admin_view(request):
             # Resolve all-bot games
             fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
             current_id = new_game.board_id
+            count = 500
             while True: 
                 if fin == "continue":
                     fin = Board.objects.get(id=current_id).handleTurn("admin","test")
@@ -227,8 +228,13 @@ def admin_view(request):
                 else:
                     print("fin:" + str(fin))
                     g_id = int(fin.split('=')[1].split('&')[0])
+                    
                     if g_id == -1 or g_id == -2:
                         # Temporary hack 
+                        count -= 1 
+                        if count == 0:
+                            break
+
                         seq_data = {"index": 0, "id": id_to_test, "token_assignment":[], "players": []}
                         new_game, msg = _create_game(seq_data)
                         if new_game is None:
@@ -428,3 +434,18 @@ def board_gif(request):
         if c is not None and i != len(history)-1:
             index += [len(index)+1]
     return render(request, "board_gif.html", {"game_id": game_id, "board_history": index})
+
+def pretest_view(request):
+    form = QuizForm(request.POST)
+    message = ""
+    if form.is_valid():
+        resp = [request.POST['movement'], request.POST['traversible'], request.POST['objective'], request.POST['overlap']]
+        ans = ['3','2','2','2','1']
+        print(resp)
+        if all([ans[i]==resp[i] for i in range(len(resp))]):
+            request.POST = request.POST.copy()
+            request.POST['command'] = 'Start Session'
+            return game_view(request)
+        else:
+            message = "* One or more of the selected answers are incorrect<br>"
+    return render(request, 'pretest.html', {'quiz_form' : QuizForm(), 'message' : message})

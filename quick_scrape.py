@@ -1,9 +1,10 @@
 from game.models import Game, Board
+import numpy as np 
 data = {}
 for game in Game.objects.all():
-    if game.id >= 0 and game.id <= 793:
+    if game.id >= 2158 and game.id <= 5000:
         corr_board = Board.objects.get(id=game.board_id)
-        mapName = corr_board.getName()
+        mapName = corr_board.getName()+"_" + str(game.parsed_seq_data["id"])
         if mapName not in data:
             data[mapName] = [] 
         
@@ -11,6 +12,7 @@ for game in Game.objects.all():
         data[mapName] += [corr_board.parsed_score_history[-1]]
 
 for key in data:
-    data[key] = sum(data[key])/len(data[key])
+    analysis = [np.mean(data[key]), np.std(data[key]) * 1.96 / np.sqrt(len(data[key]))]
+    data[key] = analysis
 
 print(data)

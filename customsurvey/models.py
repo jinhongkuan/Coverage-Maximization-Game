@@ -16,3 +16,4 @@ class TeamEvalSurveyData(models.Model):
 
     def pretty_print(self):
         return "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9}".format(self.difficulty, self.satisfaction,self.confusion,self.collaboration,self.contribution,self.interaction,self.isolation,self.activity,self.understanding,self.intelligence)
+        
