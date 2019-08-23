@@ -118,6 +118,7 @@ class Game(models.Model):
             self.available = False 
             self.start_time = datetime.now(timezone.utc)
             self.save()
+            board.updateAI()
         player.game_id = self.id 
         player.all_game_ids += str(self.id) + ","
         player.save()
@@ -129,6 +130,7 @@ class Game(models.Model):
         self.save()
 
 class Board(models.Model):
+    waiting = models.TextField(null=False, default="")
     game_id = models.IntegerField(null=False)
     width = models.IntegerField(null=False)
     height = models.IntegerField(null=False)
@@ -241,8 +243,6 @@ class Board(models.Model):
 
 
     def updateAI(self):
-        print("called")
-        print("agents (before updateAI): ",self.agents)
         for agent_ip in self.IP_Agent:
             if self.IP_Agent[agent_ip].algo_instance is not None and self.parsed_pending[agent_ip] is None:
                 exceed_limit = True
@@ -251,7 +251,6 @@ class Board(models.Model):
                     action = self.IP_Agent[agent_ip].algo_instance.computeNext(self.generateState(self.IP_Agent[agent_ip]))
                     viable = self.attemptAction(agent_ip, action, test=True)
                     if viable:
-                        print(agent_ip, " has moved")
                         self.parsed_pending[agent_ip] = action
                         exceed_limit = False
                         break
@@ -265,7 +264,6 @@ class Board(models.Model):
         return self.optimal_score
 
     def handleTurn(self, caller, action, force_next=False):
-        print("next")
         redirect = ""
         my_game = Game.objects.get(id=self.game_id)
         should_continue = True
@@ -312,7 +310,8 @@ class Board(models.Model):
                     self.parsed_pending[player] = json.dumps((self.IP_Agents[player].r,self.IP_Agents[player].c))
                 # self.parsed_pending[player] = None
             # Sequential mechanism
-            self.parsed_pending[random.choice(list(self.parsed_pending.keys()))] = None
+            self.waiting = random.choice(list(self.parsed_pending.keys()))
+            self.parsed_pending[self.waiting] = None
             
             for player in self.parsed_needs_refresh:
                 if self.parsed_needs_refresh[player] == "False":
@@ -493,9 +492,10 @@ class Board(models.Model):
         if Game.objects.get(id=self.game_id).available:
             output += "Waiting for more player(s).."
         elif self.parsed_pending[callerIP] is None:
-            output += "Your Turn"
+            output += "Your Move"
         else:
-            output += "Waiting for other player(s).."
+            if not self.waiting == "":
+                output += "Waiting for other player: <img src='{0}' style='width: 25px; height: 25px; vertical-align: middle'></img>".format(os.path.join(STATIC_URL,self.IP_Agent[self.waiting].token))
         my_game = Game.objects.get(id=self.game_id)
         seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
         output += "<br>(" + str(int(seq.parsed_data[my_game.parsed_seq_data["index"]][1]) - len(self.parsed_history)) + " turns remaining)"
@@ -512,7 +512,7 @@ class Board(models.Model):
             certain_set = set([(x,y) for x in range(self.height) for y in range(self.width)])
         else:
             visible_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight, self.connected)
-            certain_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), self.IP_Agent[caller.IP].sight - self.max_coverage_range, self.connected)
+            certain_set = self.getCoveredSet((self.IP_Agent[caller.IP].r, self.IP_Agent[caller.IP].c), 1, self.connected)
 
         if history==-1 or history==len([x for x in self.parsed_history if x is not None]):
             for agent_ip in self.IP_Agent:
@@ -559,7 +559,7 @@ class Board(models.Model):
                         elif key in total_covered_set:
                             val = "2"
                         else:
-                            val = "0"
+                            val = "4"
                   
                     else:
                         val = "1"
@@ -675,16 +675,18 @@ def _create_game(seq_data_):
     print(new_game.parsed_seq_data)
     # new_game.saveState()
     
+
+    
+    new_board = new_game.make_board(read_map, map_name.split(".")[0])
+    
+
     if Sequence.objects.get(id=seq_data_["id"]).parsed_players.count("player") == 0:
         print("set ongoing to true")
         new_game.ongoing = True
         new_game.available = False
         new_game.parsed_seq_data["players"]=list(Board.objects.get(id=new_game.board_id).parsed_pending.keys())
-    
+        new_board.updateAI()
     new_game.saveState()
-    new_board = new_game.make_board(read_map, map_name.split(".")[0])
-    new_board.updateAI()
-    print("agents (after update AI): ",Board.objects.get(id=new_game.board_id).agents)
     return (new_game, "")
 
 class Config(models.Model):

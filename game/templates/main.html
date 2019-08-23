@@ -13,13 +13,14 @@
         <br><img src="static/terminologies.PNG" style="width: 207px; height:179px; display:block; margin-left: auto; margin-right: auto">
         <br>4. If multiple agents are near each other, an overlap occurs as indicated by dark green tiles
         <br><img src="static/overlapping.gif" style="width: 156px; height:156px; display:block; margin-left: auto; margin-right: auto">
-        <br>5. You and other players can only see tiles within <b>2 </b>ranges away
+        <br>5. You and other players can only see tiles within <b>3 </b>ranges away
         <br><img src="static/fog.PNG" style="width: 300px; height:300px; display:block; margin-left: auto; margin-right: auto">
         <br>6. You can move your agent to any of the neighboring tiles (or stay in position), valid moves will be highlighted in yellow when you hover over them 
         <br><img src="static/highlight.PNG" style="width: 124px; height:124px; display:block; margin-left: auto; margin-right: auto">
         <br>7. <b>This is a cooperative game.</b> You and your teammates work together to cover as much space as possible
-        <br>8. There are 10 rounds in this game. At the end of each round, you will be given a quick survey. 
-        <br>9. Your first round is a tutorial and will not be recorded.
+        <br>8. There are 7 rounds in this game. At the end of each round, you will be given a quick survey. 
+        <br>9. Within a round, players are randomly chosen to move. When it is your turn, the texts 'Your Move' will be displayed.
+        <br>10. Your first round is a tutorial and will not be recorded.
 </div>
 <form action="game" method="POST" style="text-align: center">
     {% csrf_token %}

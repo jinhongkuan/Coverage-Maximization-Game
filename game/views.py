@@ -55,7 +55,7 @@ def game_view(request):
         
         open_games = [x for x in open_games if len(Board.objects.filter(id=x.board_id)) == 1 and ip not in Board.objects.get(id=x.board_id).parsed_pending]
 
-        default_seq_name= "seq0"
+        default_seq_name= "seq0_" + "1" # str(player.id % 9)
         fresh = True
         seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
         new_game, msg = _create_game(seq_data)
@@ -217,7 +217,7 @@ def admin_view(request):
             # Resolve all-bot games
             fin = Board.objects.get(id=new_game.board_id).handleTurn("admin","test")
             current_id = new_game.board_id
-            count = 500
+            count = 19
             while True: 
                 if fin == "continue":
                     fin = Board.objects.get(id=current_id).handleTurn("admin","test")
@@ -280,6 +280,7 @@ def admin_view(request):
                 else:
                     x = ip 
                 translated_players += [x]
+            translated_players = Sequence.objects.get(id=game.parsed_seq_data["id"]).parsed_players
             try:
                 survey_data = TeamEvalSurveyData.objects.get(game_id=game.id).pretty_print()
             except:
