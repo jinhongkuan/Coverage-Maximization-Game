@@ -29,7 +29,7 @@ class BLLL(Algorithm):
         return 1 - math.exp(-rate*duration)
 
     def computeNext(self, state):
-        neighbors, connected, visible_agents = state 
+        neighbors, connected, visible_agents, grid_val = state 
         covered = set()
         repeated = []
 
@@ -55,13 +55,19 @@ class BLLL(Algorithm):
         marginal_covered_set_alpha = covered_set_alpha - covered 
         covered_set_beta = set([action] + neighbors[action])
         marginal_covered_set_beta = covered_set_beta - covered
-       
+
+        marginal_covered_set_alpha = sum(grid_val[x] for x in marginal_covered_set_alpha)
+        marginal_covered_set_beta = sum(grid_val[x] for x in marginal_covered_set_beta)
+        
         if self.exploration_term == 999:
-            if len(marginal_covered_set_alpha) >= len(marginal_covered_set_beta):
+            if (marginal_covered_set_alpha) >= (marginal_covered_set_beta):
+                action = position
+        elif self.exploration_term == 998:
+            if (marginal_covered_set_alpha) > (marginal_covered_set_beta):
                 action = position
         else:
-            alpha = math.exp(self.exploration_term*len(marginal_covered_set_alpha))
-            beta = math.exp(self.exploration_term*len(marginal_covered_set_beta))
+            alpha = math.exp(self.exploration_term*(marginal_covered_set_alpha))
+            beta = math.exp(self.exploration_term*(marginal_covered_set_beta))
             if random.uniform(0,1) <= alpha/(alpha+beta):
                 action = position
 

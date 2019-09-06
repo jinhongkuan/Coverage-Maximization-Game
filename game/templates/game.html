@@ -21,9 +21,6 @@ $(document).ready(function(){
     $("#board").load("board");
     $(document).keydown(respond_keypress);
     setInterval(function(e){
-        $.ajax({url: "board", data: {"poll" : "true"}, method:"GET", success: function(result){
-    if (result=="True")
-    {
         $("#board").load("board", {csrfmiddlewaretoken: $("input[name='csrfmiddlewaretoken']").attr("value")}, 
         function() {
             if ($("#redirect").html().length > 0)
@@ -31,12 +28,6 @@ $(document).ready(function(){
                 window.location.replace($("#redirect").html());
             }
         });
-    } else if (result == "False") {
-
-    } else {
-        window.location.replace(result);
-    }
-  }});
     }, 1000);
 });
 

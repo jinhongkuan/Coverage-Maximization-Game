@@ -1,0 +1,2 @@
+Greedy-equals holding 0 utility are really good at knocking peers off local min, thus the maps are designed around this characteristic
+Good noise: 1.5

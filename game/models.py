@@ -142,8 +142,9 @@ class Board(models.Model):
     needs_refresh = models.TextField(null=False, default='{"admin":"True"}')
     locked = models.BooleanField(null=False, default=False)
     optimal_score = models.IntegerField(null=False, default=0)
+    
     grid_type = {'-1': "grey-grid", '0': "white-grid", '1': "black-grid", '2': "singly-covered-grid", '3': "doubly-covered-grid", '4': 'uncertain-grid'}
-
+    grid_val = {}
     parsed_history = []
     parsed_score_history = []
     parsed_pending = {}
@@ -207,8 +208,14 @@ class Board(models.Model):
                             dc += c 
                             if dr >=0 and dr < self.height and dc >= 0 and dc < self.width:
                                 self.connected[(r,c)] += [(dr, dc)]
-                                if self.grid[dr][dc] == "0":
+                                if self.grid[dr][dc] != "1":
                                     self.neighbors[(r,c)] += [(dr, dc)] 
+                        # Assign dollar value 
+                        if self.grid[r][c] == "2":
+                            self.grid_val[(r,c)] = 1 
+                        else:
+                            self.grid_val[(r,c)] = 0
+                
 
         self.parsed_score_history = json.loads(self.score_history)
         if len(self.parsed_score_history) == 0 or self.getGlobalScore() == self.getOptimalScore():
@@ -415,7 +422,7 @@ class Board(models.Model):
         covered_set = covered_set.intersection(visible_set)
         repeated_set = repeated_set.intersection(visible_set)
 
-        return (self.neighbors, self.connected, agents)
+        return (self.neighbors, self.connected, agents, self.grid_val)
 
     def attemptAction(self, callerIP, action, test=False, no_pending=False):
         try:
@@ -545,13 +552,14 @@ class Board(models.Model):
         for r in range(self.height):
             for c in range(self.width):
                 key = (r,c)
+                content = ""
                 if key not in visible_set:
                     if show_obstacles and self.grid[r][c] == "1":
                         val = "1"
                     else:
                         val = "-1"
                 else:
-                    if self.grid[r][c] == "0":
+                    if self.grid[r][c] == "0" or self.grid[r][c] == "2":
                         if key not in certain_set:
                             val = "4"
                         elif key in repeated_covered_set:
@@ -560,28 +568,34 @@ class Board(models.Model):
                             val = "2"
                         else:
                             val = "4"
-                  
+
                     else:
                         val = "1"
-                content = ""
+                    if self.grid[r][c] == "2":
+                        content += "<img src='"+ os.path.join(STATIC_URL,"tokens/dollar.png") +"' style='position:absolute; left: 0px'>"
+                
+              
+                content_agent = ""
                 if history==-1 or history==len([x for x in self.parsed_history if x is not None]):
+                    
                     for agent in self.IP_Agent:
                         if self.IP_Agent[agent].r == r and self.IP_Agent[agent].c == c and val != "-1":
                             if caller != "admin" and agent == caller.IP:
-                                content = "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; margin: 6px 13.5px'>"
-                                content += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                                content_agent += "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; top: 6px; left: 13.5px'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
                             else:
-                                content = "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
                 else:
                     snapshot = self.parsed_history[history]
                     for agent in snapshot:
                         if tuple(snapshot[agent]) == (r,c) and val != "-1":
                             if caller != "admin" and agent == caller.IP:
-                                content = "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; margin: 6px 13.5px'>"
-                                content += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
+                                content_agent += "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2;  top: 6px; left: 13.5px'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
                             else:
-                                content = "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position: relative; z-index:1'>"
-
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
+                
+                content += content_agent
                 output[key] = (self.grid_type[val] + (" hover-highlight" if caller!="admin" and self.attemptAction(caller.IP, json.dumps([r,c]), test=True, no_pending=True) else ""), content)
         return output 
     
@@ -599,7 +613,7 @@ class Board(models.Model):
         for agent_ip in self.IP_Agent:
             x = self.getCoveredSet((self.IP_Agent[agent_ip].r, self.IP_Agent[agent_ip].c), self.IP_Agent[agent_ip].coverage, self.neighbors)
             total_covered_set = total_covered_set.union(x)
-        return len(total_covered_set)
+        return sum(self.grid_val[x] for x in total_covered_set)
 
     def saveState(self):
         self.history = json.dumps(self.parsed_history)
