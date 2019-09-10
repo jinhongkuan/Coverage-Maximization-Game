@@ -48,9 +48,24 @@ def game_view(request):
             intelligence=request.POST["intelligence"],\
             game_id=request.POST["prev_game_id"])
     if "command" in request.POST and request.POST["command"] == "Start Session":
-        new_game = Config.objects.get(main=True).generate_game(player.id)
-        if new_game is not None:
+        # Check if there are other available games
+        open_games = Game.objects.filter(available=True)
+
+        # Remove games initiated by this player
+        
+        open_games = [x for x in open_games if len(Board.objects.filter(id=x.board_id)) == 1 and ip not in Board.objects.get(id=x.board_id).parsed_pending]
+
+        default_seq_name= "seq0_" + "1_0" # str(player.id % 9)
+        fresh = True
+        seq_data = {"index": 0, "id": Sequence.objects.get(name=default_seq_name).id, "token_assignment":[], "players": []}
+        new_game, msg = _create_game(seq_data)
+        print("agents: ",Board.objects.get(id=new_game.board_id).agents)
+        if new_game is None:
+            render(request, "error.html", {"error_code": msg})
+        else:
             new_game.add_player(player)
+        print("agents: ",Board.objects.get(id=new_game.board_id).agents)
+
 
         
         player.save()

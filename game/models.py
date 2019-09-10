@@ -344,50 +344,45 @@ class Board(models.Model):
                 my_game = Game.objects.get(id=self.game_id) 
                 my_game.ongoing = False
                 my_game.save()
-
-                if caller == "admin":
-                    seq_data = my_game.parsed_seq_data
-                    seq = Sequence.objects.get(id=seq_data["id"])
-                    new_index = seq_data["index"]+1
-                    if new_index >= len(seq.parsed_data):
-                        if "next_seq" in seq.parsed_settings:
-                            try:
-                                next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
-                            except ObjectDoesNotExist:
-                                print("End view error: Next seq does not exist")
-                            # Update AI name
-                            players = my_game.parsed_seq_data["players"]
-                            ai_players = [x for x in players if "(" in x]
-                            ai_players_new = [x for x in next_seq.parsed_players if x != "player"]
-                            if len(ai_players) != len(ai_players_new):
-                                print("End view error: AI counts mismatch")
-                            for i in range(len(players)):
-                                if "(" in players[i]:
-                                    players[i] = ai_players_new[0]
-                                    ai_players_new = ai_players_new[1:]
-                            seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": players}
-                            new_game, msg = _create_game(seq_data)
-                            for ply in Player.objects.all():
-                                if ply.game_id == self.game_id:
-                                    ply.redirected_gameid = new_game.id 
-                                    ply.save()
-                                    print("player ", ply.id, " redirected_gameid: ", new_game.id)
-                            # redirect = "end_round?game_id=-1"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
-                            redirect = "end_round?game_id=" + str(new_game.id) + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
-                        else:
-                            redirect = "end_round?game_id=-2"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
-
+                seq_data = my_game.parsed_seq_data
+                seq = Sequence.objects.get(id=seq_data["id"])
+                new_index = seq_data["index"]+1
+                if new_index >= len(seq.parsed_data):
+                    if "next_seq" in seq.parsed_settings:
+                        try:
+                            next_seq = Sequence.objects.get(name=seq.parsed_settings["next_seq"])
+                        except ObjectDoesNotExist:
+                            print("End view error: Next seq does not exist")
+                        # Update AI name
+                        players = my_game.parsed_seq_data["players"]
+                        ai_players = [x for x in players if "(" in x]
+                        ai_players_new = [x for x in next_seq.parsed_players if x != "player"]
+                        if len(ai_players) != len(ai_players_new):
+                            print("End view error: AI counts mismatch")
+                        for i in range(len(players)):
+                            if "(" in players[i]:
+                                players[i] = ai_players_new[0]
+                                ai_players_new = ai_players_new[1:]
+                        seq_data = seq_data = {"index": 0, "id": next_seq.id, "token_assignment":[], "players": players}
+                        new_game, msg = _create_game(seq_data)
+                        for ply in Player.objects.all():
+                            if ply.game_id == self.game_id:
+                                ply.redirected_gameid = new_game.id 
+                                ply.save()
+                                print("player ", ply.id, " redirected_gameid: ", new_game.id)
+                        # redirect = "end_round?game_id=-1"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
+                        redirect = "end_round?game_id=" + str(new_game.id) + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
                     else:
-                        new_data = deepcopy(seq_data)
-                        new_data["index"] = new_index
-                        new_game, msg = _create_game(new_data)
-                        if new_game is None:
-                            redirect = "error"
-                        else:
-                            redirect = "end_round?game_id=" + str(new_game.id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
+                        redirect = "end_round?game_id=-2"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
+
                 else:
-                    new_game_id = Config.objects.get(main=True).generate_game(caller.id).id
-                    redirect = "end_round?game_id=" + str(new_game_id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
+                    new_data = deepcopy(seq_data)
+                    new_data["index"] = new_index
+                    new_game, msg = _create_game(new_data)
+                    if new_game is None:
+                        redirect = "error"
+                    else:
+                        redirect = "end_round?game_id=" + str(new_game.id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
                 for player_ in self.parsed_needs_refresh:
                     self.parsed_needs_refresh[player_] = redirect
                 self.saveState()
@@ -712,7 +707,7 @@ class Config(models.Model):
     timer_enabled = models.BooleanField(null=False,default=False)
     snapshot_interval = models.IntegerField(null=False, default=10)
     main = models.BooleanField(null=False,default=False)
-    assigner = models.TextField(null=False, default='{"table":{},"progress":{}}')
+    assigner = models.TextField(null=False, default="{}")
 
     parsed_assigner = None
     assigner_table = {
@@ -725,48 +720,27 @@ class Config(models.Model):
     }
 
     def generate_game(self,player_id):
-        
         real_id = player_id - Player.objects.first().id 
         if real_id not in self.parsed_assigner['table']:
             assert(real_id % 6 == 0)
             for di in self.assigner_table:
                 self.parsed_assigner['table'][real_id + di] = copy(self.assigner_table[di])
-                self.parsed_assigner['progress'][real_id + di] = -1
-        self.parsed_assigner['progress'][real_id] += 1 
         # Update 
         # Find current progress 
         if self.parsed_assigner['progress'][real_id] == 3:
-            return -2 # Player is done 
+            return -1 # Player is done 
         else:
-            
+            self.parsed_assigner['progress'][real_id] += 1 
             progress = self.parsed_assigner['progress'][real_id]
-            if self.parsed_assigner['table'][real_id][progress] < 0:
-                seq_id = abs(self.parsed_assigner['table'][real_id][progress])
+            if self.parsed_assigner['table'][progress] < 0:
                 # Create game 
-                seq_data = {}
-                seq_data["id"] = Sequence.objects.get(name="seq_"+ str(seq_id))
-                seq_data["index"] = 0 # Temporary hack
-                seq_data_["players"] = [] # Temporary hack 
-                new_game, msg = _create_game(seq_data)
-                print(msg)
-                # Update everyone else 
-                for i in range(6):
-                    for j, cell in enumerate(self.parsed_assigner['table'][(real_id // 6) * 6 + i]):
-                        if cell == -seq_id:
-                            self.parsed_assigner['table'][(real_id // 6) * 6 + i][j] = new_game.id 
-                return new_game
             else:
-                return self.parsed_assigner['table'][real_id][progress]
-
-        self.assigner = json.dumps(self.parsed_assigner)
-        self.save()
+                return self.parsed_assigner['table'][progress]
 
 
 
-def initialize_config(instance, **kwargs):
-    print(instance.assigner)
+def initialize_config(instance):
     instance.parsed_assigner = json.loads(instance.assigner)
-    
 
 
 models.signals.post_init.connect(initialize_config, Config)
