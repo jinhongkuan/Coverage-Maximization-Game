@@ -707,43 +707,7 @@ class Config(models.Model):
     timer_enabled = models.BooleanField(null=False,default=False)
     snapshot_interval = models.IntegerField(null=False, default=10)
     main = models.BooleanField(null=False,default=False)
-    assigner = models.TextField(null=False, default="{}")
-
-    parsed_assigner = None
-    assigner_table = {
-        0: [-1,-2,-3,-4],
-        1: [-5,-6,-3,-4],
-        2: [-7,-2,-8,-9],
-        3: [-5,-10,-8,-9],
-        4: [-7,-10,-11,-4],
-        5: [-7,-10,-3,-12]
-    }
-
-    def generate_game(self,player_id):
-        real_id = player_id - Player.objects.first().id 
-        if real_id not in self.parsed_assigner['table']:
-            assert(real_id % 6 == 0)
-            for di in self.assigner_table:
-                self.parsed_assigner['table'][real_id + di] = copy(self.assigner_table[di])
-        # Update 
-        # Find current progress 
-        if self.parsed_assigner['progress'][real_id] == 3:
-            return -1 # Player is done 
-        else:
-            self.parsed_assigner['progress'][real_id] += 1 
-            progress = self.parsed_assigner['progress'][real_id]
-            if self.parsed_assigner['table'][progress] < 0:
-                # Create game 
-            else:
-                return self.parsed_assigner['table'][progress]
-
-
-
-def initialize_config(instance):
-    instance.parsed_assigner = json.loads(instance.assigner)
-
-
-models.signals.post_init.connect(initialize_config, Config)
+    
 
 def async_timer(timer_stop):
     ongoing_games = Game.objects.filter(ongoing=True)
