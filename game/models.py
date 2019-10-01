@@ -794,6 +794,8 @@ class Config(models.Model):
                 return new_game
             else:
                 game = Game.objects.get(id=self.parsed_assigner['table'][real_id][progress])
+                self.assigner = json.dumps(self.parsed_assigner)
+                self.save()
                 return game
 
         

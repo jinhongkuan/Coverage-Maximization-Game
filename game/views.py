@@ -50,7 +50,6 @@ def game_view(request):
     if "command" in request.POST and request.POST["command"] == "Start Session":
         new_game = Config.objects.get(main=True).generate_game(player.id)
         new_game.add_player(player)
-
         
         player.save()
             
@@ -113,7 +112,7 @@ def board_view(request):
         try:
             player = Player.objects.get(IP=ip)
         except ObjectDoesNotExist:
-            player = Player.objects.create(IP=ip,active=True)
+            return render(request, "error.html", {"error_code": "Unable to locate player"})
 
         # Obtain player Game & Board
         if player.game_id == -1:
