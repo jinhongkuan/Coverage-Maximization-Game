@@ -715,7 +715,7 @@ def _create_game(seq_data_):
 
 class Config(models.Model):
     timer_enabled = models.BooleanField(null=False,default=False)
-    snapshot_interval = models.IntegerField(null=False, default=10)
+    snapshot_interval = models.IntegerField(null=False, default=1)
     main = models.BooleanField(null=False,default=False)
     assigner = models.TextField(null=False, default='{"table":{},"progress":{}}')
 
@@ -754,13 +754,14 @@ class Config(models.Model):
     def generate_game(self,player_id):
         # Progress ranges from 0 to 3, initialized to -1
 
-        real_id = str(player_id - Player.objects.first().id)
+        real_id = (player_id - Player.objects.first().id)
         if real_id not in self.parsed_assigner['table']:
             tab =  self.parsed_assigner['table']
             assert(int(real_id) % 6 == 0)
             for di in self.assigner_table:
                 self.parsed_assigner['table'][int(real_id) + di] = copy(self.assigner_table[di])
                 self.parsed_assigner['progress'][int(real_id) + di] = -1
+        print(self.parsed_assigner)
         self.parsed_assigner['progress'][real_id] += 1 
         # Update 
         # Find current progress 
@@ -771,12 +772,15 @@ class Config(models.Model):
         else:
             
             progress = self.parsed_assigner['progress'][real_id]
+            print("Game progress: ",progress)
+            print(self.parsed_assigner)
             if self.parsed_assigner['table'][real_id][progress] < 0:
                 # Hasn't been assigned a game yet, create one and assign peers to it 
                 ind = abs(self.parsed_assigner['table'][real_id][progress])
+                
                 # Create game 
                 seq_data = {}
-                seq_data["id"] = Sequence.objects.get(name="seq_exp_" + str(ind)).id
+                seq_data["id"] = Sequence.objects.get(name="seq_exp2_" + str(ind)).id
                 seq_data["index"] = 0 # '-7' corresponds to the 7th game in the table 
                 seq_data["players"] = [] # Temporary hack 
                 seq_data["token_assignment"] = [] # Temporary hack 
@@ -784,7 +788,7 @@ class Config(models.Model):
                 print(msg)
                 # Update everyone else 
                 for i in range(6):
-                    peer_id = str((int(real_id) // 6) * 6 + i)
+                    peer_id = (int(real_id) // 6) * 6 + i
                     for j, cell in enumerate(self.parsed_assigner['table'][peer_id]):
                         if cell == -ind:
                             self.parsed_assigner['table'][peer_id][j] = new_game.id 
