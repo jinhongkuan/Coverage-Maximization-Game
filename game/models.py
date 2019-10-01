@@ -784,7 +784,7 @@ class Config(models.Model):
                 print(msg)
                 # Update everyone else 
                 for i in range(6):
-                    peer_id = (int(real_id) // 6) * 6 + i
+                    peer_id = str((int(real_id) // 6) * 6 + i)
                     for j, cell in enumerate(self.parsed_assigner['table'][peer_id]):
                         if cell == -ind:
                             self.parsed_assigner['table'][peer_id][j] = new_game.id 
