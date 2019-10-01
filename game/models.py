@@ -213,11 +213,14 @@ class Board(models.Model):
                         # Assign dollar value 
                         if self.grid[r][c] == "2":
                             self.grid_val[(r,c)] = 1 
+                        elif self.grid[r][c] == "3":
+                            self.grid_val[(r,c)] = 5 
                         else:
                             self.grid_val[(r,c)] = 0
                 
 
         self.parsed_score_history = json.loads(self.score_history)
+        
         if len(self.parsed_score_history) == 0 or self.getGlobalScore() == self.getOptimalScore():
             self.parsed_score_history += [self.getGlobalScore()]
 
@@ -334,6 +337,7 @@ class Board(models.Model):
                 self.parsed_history[-1] = None 
             self.parsed_history += [deepcopy(self.grid)]
             self.parsed_score_history += [self.getGlobalScore()]
+            print("Turn: ", len(self.parsed_score_history), " Score: ", self.getGlobalScore())
             self.saveState()
 
             # Determine if game has ended
@@ -564,7 +568,7 @@ class Board(models.Model):
                     else:
                         val = "-1"
                 else:
-                    if self.grid[r][c] == "0" or self.grid[r][c] == "2":
+                    if self.grid[r][c] == "0" or self.grid[r][c] == "2" or self.grid[r][c] == "3":
                         if key not in certain_set:
                             val = "4"
                         elif key in repeated_covered_set:
@@ -577,8 +581,9 @@ class Board(models.Model):
                     else:
                         val = "1"
                     if self.grid[r][c] == "2":
-                        content += "<img src='"+ os.path.join(STATIC_URL,"tokens/dollar.png") +"' style='position:absolute; left: 0px'>"
-                
+                        content += "<img src='"+ os.path.join(STATIC_URL,"tokens/dollar1_.png") +"' style='position:absolute; left: 0px; height: 50px; width: 50px'>"
+                    elif self.grid[r][c] == "3":
+                        content += "<img src='"+ os.path.join(STATIC_URL,"tokens/dollar5_.png") +"' style='position:absolute; left: 0px; height: 50px; width: 50px'>"
               
                 content_agent = ""
                 if history==-1 or history==len([x for x in self.parsed_history if x is not None]):
@@ -587,18 +592,18 @@ class Board(models.Model):
                         if self.IP_Agent[agent].r == r and self.IP_Agent[agent].c == c and val != "-1":
                             if caller != "admin" and agent == caller.IP:
                                 content_agent += "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2; top: 6px; left: 13.5px'>"
-                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; top: 25px; left: 25px; transform: translate(-50%, -50%); width: 40px; height 40px'>"
                             else:
-                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; top: 25px; left: 25px; transform: translate(-50%, -50%); width: 40px; height 40px'>"
                 else:
                     snapshot = self.parsed_history[history]
                     for agent in snapshot:
                         if tuple(snapshot[agent]) == (r,c) and val != "-1":
                             if caller != "admin" and agent == caller.IP:
                                 content_agent += "<img src='"+ os.path.join(STATIC_URL,"tokens/player.png") +"' style='position:absolute; z-index:2;  top: 6px; left: 13.5px'>"
-                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; top: 25px; left: 25px; transform: translate(-50%, -50%); width: 40px; height 40px'>"
                             else:
-                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; left: 0px; opacity: 0.8'>"
+                                content_agent += "<img src='" + os.path.join(STATIC_URL,self.IP_Agent[agent].token) + "' style='position:absolute; top: 25px; left: 25px; transform: translate(-50%, -50%); width: 40px; height 40px'>"
                 
                 content += content_agent
                 output[key] = (self.grid_type[val] + (" hover-highlight" if caller!="admin" and self.attemptAction(caller.IP, json.dumps([r,c]), test=True, no_pending=True) else ""), content)
@@ -724,8 +729,31 @@ class Config(models.Model):
         5: [-7,-10,-3,-12]
     }
 
+    assigner_seq = {
+        1: (0,1),
+        2: (1,2),
+        3: (2,3),
+        4: (3,3),
+        5: (0,2),
+        6: (1,1),
+        7: (0,3),
+        8: (2,2),
+        9: (3,2),
+        10: (1,3),
+        11: (2,1),
+        12: (3,1)
+    }
+
+    def generate_seq(self, _name, maps, bot):
+        for i in range(12):
+            Sequence.objects.create(name="seq_"+_name+"_"+str(i+1), \
+                data=json.dumps([maps[self.assigner_seq[i+1][0]]]), \
+                    players=json.dumps(["player"]*self.assigner_seq[i+1][1]+[bot]*(3-self.assigner_seq[i+1][1])))
+
+
     def generate_game(self,player_id):
-        
+        # Progress ranges from 0 to 3, initialized to -1
+
         real_id = player_id - Player.objects.first().id 
         if real_id not in self.parsed_assigner['table']:
             assert(real_id % 6 == 0)
@@ -741,19 +769,22 @@ class Config(models.Model):
             
             progress = self.parsed_assigner['progress'][real_id]
             if self.parsed_assigner['table'][real_id][progress] < 0:
-                seq_id = abs(self.parsed_assigner['table'][real_id][progress])
+                # Hasn't been assigned a game yet, create one and assign peers to it 
+                ind = abs(self.parsed_assigner['table'][real_id][progress])
                 # Create game 
                 seq_data = {}
-                seq_data["id"] = Sequence.objects.get(name="seq_"+ str(seq_id))
-                seq_data["index"] = 0 # Temporary hack
-                seq_data_["players"] = [] # Temporary hack 
+                seq_data["id"] = Sequence.objects.get(name="seq_exp_" + str(ind)).id
+                seq_data["index"] = 0 # '-7' corresponds to the 7th game in the table 
+                seq_data["players"] = [] # Temporary hack 
+                seq_data["token_assignment"] = [] # Temporary hack 
                 new_game, msg = _create_game(seq_data)
                 print(msg)
                 # Update everyone else 
                 for i in range(6):
-                    for j, cell in enumerate(self.parsed_assigner['table'][(real_id // 6) * 6 + i]):
-                        if cell == -seq_id:
-                            self.parsed_assigner['table'][(real_id // 6) * 6 + i][j] = new_game.id 
+                    peer_id = (real_id // 6) * 6 + i
+                    for j, cell in enumerate(self.parsed_assigner['table'][peer_id]):
+                        if cell == -ind:
+                            self.parsed_assigner['table'][peer_id][j] = new_game.id 
                 return new_game
             else:
                 return self.parsed_assigner['table'][real_id][progress]
@@ -764,7 +795,6 @@ class Config(models.Model):
 
 
 def initialize_config(instance, **kwargs):
-    print(instance.assigner)
     instance.parsed_assigner = json.loads(instance.assigner)
     
 
@@ -776,9 +806,7 @@ def async_timer(timer_stop):
 
     for game in ongoing_games:
         if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
-            print("tick")
             resp = Board.objects.get(id=game.board_id).handleTurn("admin", "tick")
-            print("resp:" + resp)
             if resp != "break" and resp != "continue" and resp!= "":
                 game.ongoing = False
             game.start_time = datetime.now(timezone.utc)

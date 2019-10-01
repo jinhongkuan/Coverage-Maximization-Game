@@ -86,7 +86,7 @@ def game_view(request):
 
 def board_view(request):
     ip, _ = get_client_ip(request)
-
+    print("Board view called")
     if "admin" in request.POST and request.POST["admin"]:
         player_board = Board.objects.get(id=Game.objects.get(id=request.POST["game_id"]).board_id)
         while (player_board.locked):
@@ -135,7 +135,7 @@ def board_view(request):
         
         
         # Respond to input requests
-        redirect = "" 
+        
         if "click_data" in request.POST:
             click_data = request.POST["click_data"]
             click_data = eval(click_data)
@@ -144,8 +144,14 @@ def board_view(request):
                 redirect = ""
             elif redirect == "break":
                 redirect = ""
-                    
-
+        else:
+            # Retain last state 
+            if player_board.parsed_needs_refresh[player.IP] != "True" and player_board.parsed_needs_refresh[player.IP] != "False":
+                redirect = player_board.parsed_needs_refresh[player.IP] 
+            else:
+                redirect = ""
+        print("Refresh: ", player_board.parsed_needs_refresh[player.IP])
+        print("Redirect: ", redirect)
         view_context = {
             "cells" : player_board.getDisplayCells(player),
             "message" : player_board.getMessage(player),

@@ -384,3 +384,62 @@ class Explora(Algorithm):
             pass 
 
         return json.dumps(action)
+
+
+class GreedyExplorer(Algorithm):
+    def __init__(self, agent, exploration_term, poisson,  distance_discount):
+        super().__init__(agent)
+        self.name = "GreedyExplorer_" + str(agent.id)
+        self.exploration_term = exploration_term
+        self.distance_discount = distance_discount
+        self.poisson_rate = poisson
+
+
+    @staticmethod
+    def encode_tuple_dict(inp):
+        output = {}
+        for key in inp:
+            output[str(key)] = [inp[key][0], list(inp[key][1])]
+        return output 
+
+    @staticmethod
+    def decode_tuple_dict(inp):
+        output = {}
+        for key in inp:
+            output[tuple(eval(key))] = [inp[key][0], set([tuple(x) for x in inp[key][1]])]
+        return output 
+
+    def computeNext(self, state):
+        neighbors, connected, visible_agents = state 
+        covered = set()
+        for agent in visible_agents:
+            if agent is self.agent:
+                continue
+            territory = visible_agents[agent]
+            covered = covered.union(territory)
+
+        position = (self.agent.r, self.agent.c)
+     
+
+        if len(self.agent.parsed_memory) == 0:
+            self.agent.parsed_memory += [{}]
+        parsed_memory = GreedyExplorer.decode_tuple_dict(self.agent.parsed_memory[0])
+        visible_tiles = getCoveredSet(position, self.agent.sight, neighbors)
+        self.agent.parsed_memory[0] = Explora.encode_tuple_dict(parsed_memory)
+        self.agent.saveState()
+
+        action = random.choice(list(getCoveredSet(position, self.agent.movement, neighbors)-set([position])))
+        covered_set_alpha = set([position] + neighbors[position])
+        marginal_covered_set_alpha = covered_set_alpha - covered
+        alpha_score = sum([self.computeTileUtility(x, optimistic_world, self.distance_discount, lookahead) for x in marginal_covered_set_alpha])
+        covered_set_beta = set([action] + neighbors[action])
+        marginal_covered_set_beta = covered_set_beta - covered 
+        beta_score = sum([self.computeTileUtility(x, optimistic_world, self.distance_discount, lookahead) for x in marginal_covered_set_beta])
+        alpha = math.exp(self.exploration_term*alpha_score)
+        beta = math.exp(self.exploration_term*beta_score)
+        if random.uniform(0,1) <= alpha/(alpha+beta):
+            action = position
+        else:
+            pass 
+
+        return json.dumps(action)
