@@ -764,6 +764,8 @@ class Config(models.Model):
         # Update 
         # Find current progress 
         if self.parsed_assigner['progress'][real_id] == 3:
+            self.assigner = json.dumps(self.parsed_assigner)
+            self.save()
             return -2 # Player is done 
         else:
             
@@ -785,12 +787,14 @@ class Config(models.Model):
                     for j, cell in enumerate(self.parsed_assigner['table'][peer_id]):
                         if cell == -ind:
                             self.parsed_assigner['table'][peer_id][j] = new_game.id 
+
+                self.assigner = json.dumps(self.parsed_assigner)
+                self.save()
                 return new_game
             else:
                 return self.parsed_assigner['table'][real_id][progress]
 
-        self.assigner = json.dumps(self.parsed_assigner)
-        self.save()
+        
 
 
 
