@@ -49,8 +49,7 @@ def game_view(request):
             game_id=request.POST["prev_game_id"])
     if "command" in request.POST and request.POST["command"] == "Start Session":
         new_game = Config.objects.get(main=True).generate_game(player.id)
-        if new_game is not None:
-            new_game.add_player(player)
+        new_game.add_player(player)
 
         
         player.save()
