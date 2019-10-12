@@ -755,28 +755,29 @@ class Config(models.Model):
         # Progress ranges from 0 to 3, initialized to -1
 
         real_id = player_id - Player.objects.first().id
-        if real_id not in self.parsed_assigner['table']:
+        if str(real_id) not in self.parsed_assigner['table']:
             tab =  self.parsed_assigner['table']
-            assert(int(real_id) % 6 == 0)
+            prog =  self.parsed_assigner['progress']
+            assert(real_id % 6 == 0)
             for di in self.assigner_table:
-                self.parsed_assigner['table'][int(real_id) + di] = copy(self.assigner_table[di])
-                self.parsed_assigner['progress'][int(real_id) + di] = -1
+                self.parsed_assigner['table'][str(real_id + di)] = copy(self.assigner_table[di])
+                self.parsed_assigner['progress'][str(real_id + di)] = -1
         print(self.parsed_assigner)
-        self.parsed_assigner['progress'][real_id] += 1 
+        self.parsed_assigner['progress'][str(real_id)] += 1 
         # Update 
         # Find current progress 
-        if self.parsed_assigner['progress'][real_id] == 3:
+        if self.parsed_assigner['progress'][str(real_id)] == 3:
             self.assigner = json.dumps(self.parsed_assigner)
             self.save()
             return -2 # Player is done 
         else:
             
-            progress = self.parsed_assigner['progress'][real_id]
+            progress = self.parsed_assigner['progress'][str(real_id)]
             print("Game progress: ",progress)
             print(self.parsed_assigner)
-            if self.parsed_assigner['table'][real_id][progress] < 0:
+            if self.parsed_assigner['table'][real_id][str(progress)] < 0:
                 # Hasn't been assigned a game yet, create one and assign peers to it 
-                ind = abs(self.parsed_assigner['table'][real_id][progress])
+                ind = abs(self.parsed_assigner['table'][real_id][str(progress)])
                 
                 # Create game 
                 seq_data = {}
@@ -788,16 +789,16 @@ class Config(models.Model):
                 print(msg)
                 # Update everyone else 
                 for i in range(6):
-                    peer_id = (int(real_id) // 6) * 6 + i
-                    for j, cell in enumerate(self.parsed_assigner['table'][peer_id]):
+                    peer_id = (real_id // 6) * 6 + i
+                    for j, cell in enumerate(self.parsed_assigner['table'][str(peer_id)]):
                         if cell == -ind:
-                            self.parsed_assigner['table'][peer_id][j] = new_game.id 
+                            self.parsed_assigner['table'][str(peer_id)][j] = new_game.id 
 
                 self.assigner = json.dumps(self.parsed_assigner)
                 self.save()
                 return new_game
             else:
-                game = Game.objects.get(id=self.parsed_assigner['table'][real_id][progress])
+                game = Game.objects.get(id=self.parsed_assigner['table'][str(real_id)][progress])
                 self.assigner = json.dumps(self.parsed_assigner)
                 self.save()
                 return game
