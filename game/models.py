@@ -754,7 +754,7 @@ class Config(models.Model):
     def generate_game(self,player_id):
         # Progress ranges from 0 to 3, initialized to -1
 
-        real_id = str(player_id - Player.objects.first().id)
+        real_id = player_id - Player.objects.first().id
         if real_id not in self.parsed_assigner['table']:
             tab =  self.parsed_assigner['table']
             assert(int(real_id) % 6 == 0)
@@ -788,7 +788,7 @@ class Config(models.Model):
                 print(msg)
                 # Update everyone else 
                 for i in range(6):
-                    peer_id = str((int(real_id) // 6) * 6 + i)
+                    peer_id = (int(real_id) // 6) * 6 + i
                     for j, cell in enumerate(self.parsed_assigner['table'][peer_id]):
                         if cell == -ind:
                             self.parsed_assigner['table'][peer_id][j] = new_game.id 
