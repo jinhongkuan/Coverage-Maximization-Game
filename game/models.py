@@ -775,9 +775,9 @@ class Config(models.Model):
             progress = self.parsed_assigner['progress'][str(real_id)]
             print("Game progress: ",progress)
             print(self.parsed_assigner)
-            if self.parsed_assigner['table'][real_id][str(progress)] < 0:
+            if self.parsed_assigner['table'][str(real_id)][progress] < 0:
                 # Hasn't been assigned a game yet, create one and assign peers to it 
-                ind = abs(self.parsed_assigner['table'][real_id][str(progress)])
+                ind = abs(self.parsed_assigner['table'][str(real_id)][progress])
                 
                 # Create game 
                 seq_data = {}
