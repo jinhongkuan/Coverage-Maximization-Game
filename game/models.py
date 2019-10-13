@@ -311,7 +311,7 @@ class Board(models.Model):
         all_done = all_done or force_next
 
         # Modified to fit sequential
-        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled and all_done):
+        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled):
             # Execute all pending actions
             for player in self.parsed_pending:
                 if self.parsed_pending[player] is not None:
