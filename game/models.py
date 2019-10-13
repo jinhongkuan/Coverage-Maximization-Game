@@ -313,7 +313,7 @@ class Board(models.Model):
         # Modified to fit sequential
         if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled):
             # Execute all pending actions
-            # test
+            # test1
             for player in self.parsed_pending:
                 if self.parsed_pending[player] is not None:
                     self.attemptAction(player, self.parsed_pending[player], test=False)
