@@ -296,10 +296,10 @@ class Board(models.Model):
             if not force_next and self.attemptAction(caller.IP, action, test=True):
 
                 # Only accept moves when it is the player's turn
-                if self.parsed_pending[caller.IP] == None:
+                if caller.IP == self.waiting:
                     self.parsed_pending[caller.IP] = action
-                else: 
-                    print("Not the player's turn")
+                else:
+                    self.parsed_pending[caller.IP] = None
                 
 
         all_done = True
@@ -311,14 +311,15 @@ class Board(models.Model):
         all_done = all_done or force_next
 
         # Modified to fit sequential
-        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled):
+        if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled and (caller=="admin" or all_done)):
             # Execute all pending actions
             # test1
+            print("next")
             for player in self.parsed_pending:
                 if self.parsed_pending[player] is not None:
                     self.attemptAction(player, self.parsed_pending[player], test=False)
                 else:
-                    self.parsed_pending[player] = json.dumps((self.IP_Agents[player].r,self.IP_Agents[player].c))
+                    self.parsed_pending[player] = json.dumps((self.IP_Agent[player].r,self.IP_Agent[player].c))
                 # self.parsed_pending[player] = None
             # Sequential mechanism
             self.waiting = random.choice(list(self.parsed_pending.keys()))
@@ -508,7 +509,7 @@ class Board(models.Model):
      
         if Game.objects.get(id=self.game_id).available:
             output += "Waiting for more player(s).."
-        elif self.parsed_pending[callerIP] is None:
+        elif callerIP == self.waiting:
             output += "Your Move"
         else:
             if not self.waiting == "":
@@ -722,27 +723,27 @@ class Config(models.Model):
 
     parsed_assigner = None
     assigner_table = {
-        0: [-5,-6,-3,-4],
-        1: [-1,-2,-3,-4],
-        2: [-5,-10,-8,-9],
-        3: [-7,-2,-8,-9],
-        4: [-7,-10,-11,-4],
-        5: [-7,-10,-3,-12]
+        0: [-1,-2,-3,-4],
+        1: [-5,-6,-7,-8],
+        2: [-5,-6,-7,-8],
+        3: [-9,-10,-11,-12],
+        4: [-9,-10,-11,-12],
+        5: [-9,-10,-11,-12]
     }
-
+    # Game: Map, Player count
     assigner_seq = {
         1: (0,1),
-        2: (1,2),
-        3: (2,3),
-        4: (3,3),
+        2: (1,1),
+        3: (2,1),
+        4: (3,1),
         5: (0,2),
-        6: (1,1),
-        7: (0,3),
-        8: (2,2),
-        9: (3,2),
+        6: (1,2),
+        7: (2,2),
+        8: (3,2),
+        9: (0,3),
         10: (1,3),
-        11: (2,1),
-        12: (3,1)
+        11: (2,3),
+        12: (3,3)
     }
 
     def generate_seq(self, _name, maps, bot):
@@ -782,7 +783,7 @@ class Config(models.Model):
                 
                 # Create game 
                 seq_data = {}
-                seq_data["id"] = Sequence.objects.get(name="seq_exp2_" + str(ind)).id
+                seq_data["id"] = Sequence.objects.get(name="seq_exp3_" + str(ind)).id
                 seq_data["index"] = 0 # '-7' corresponds to the 7th game in the table 
                 seq_data["players"] = [] # Temporary hack 
                 seq_data["token_assignment"] = [] # Temporary hack 
@@ -817,7 +818,7 @@ models.signals.post_init.connect(initialize_config, Config)
 
 def async_timer(timer_stop):
     ongoing_games = Game.objects.filter(ongoing=True)
-
+    print("tick")
     for game in ongoing_games:
         if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
             resp = Board.objects.get(id=game.board_id).handleTurn("admin", "tick")
@@ -826,7 +827,7 @@ def async_timer(timer_stop):
             game.start_time = datetime.now(timezone.utc)
             game.save()
     if not timer_stop.is_set():
-        threading.Timer(1, async_timer, [timer_stop]).start()
+        threading.Timer(2, async_timer, [timer_stop]).start()
 
 
 def start_timer(timer_working, timer_stop):
