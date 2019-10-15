@@ -7,4 +7,6 @@ Player.objects.all().delete()
 Agent.objects.all().delete()
 A = Config.objects.get(main=True)
 A.assigner = '{"table":{},"progress":{}}'
+A.timer_enabled = True 
+A.snapshot_interval = 1 
 A.save()

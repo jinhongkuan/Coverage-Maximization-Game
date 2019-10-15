@@ -137,6 +137,7 @@ class Board(models.Model):
     history = models.TextField(null=False, default='[]')
     score_history = models.TextField(null=False, default='[]')
     pending = models.TextField(null=False, default='{}')
+    lastclick = models.TextField(null=False, default='{}')
     agents = models.TextField(null=False, default='{}')
     name = models.TextField(null=False, default="")
     needs_refresh = models.TextField(null=False, default='{"admin":"True"}')
@@ -148,6 +149,7 @@ class Board(models.Model):
     parsed_history = []
     parsed_score_history = []
     parsed_pending = {}
+    parsed_lastclick = {}
     parsed_needs_refresh = {}
     IP_Player = {}
     IP_Agent = {}
@@ -177,7 +179,7 @@ class Board(models.Model):
             self.grid = deepcopy(self.parsed_history[-1])
           
         parsed_agents = json.loads(self.agents)
-        
+        self.parsed_lastclick = json.loads(self.lastclick)
         self.IP_Agent = {}
         for agent in parsed_agents:
             self.IP_Agent[agent] = Agent.objects.get(id=parsed_agents[agent])
@@ -300,13 +302,12 @@ class Board(models.Model):
                     self.parsed_pending[caller.IP] = action
                 else:
                     self.parsed_pending[caller.IP] = None
-                
+                self.parsed_lastclick[caller.IP] = action
 
         all_done = True
         for player in self.parsed_pending:
             if self.parsed_pending[player] == None or self.parsed_pending[player] == "null":
                 all_done = False
-                print(player + " has not finished")
                 break 
         all_done = all_done or force_next
 
@@ -314,12 +315,14 @@ class Board(models.Model):
         if (not Config.objects.get(main=True).timer_enabled and all_done) or (Config.objects.get(main=True).timer_enabled and (caller=="admin" or all_done)):
             # Execute all pending actions
             # test1
-            print("next")
             for player in self.parsed_pending:
-                if self.parsed_pending[player] is not None:
-                    self.attemptAction(player, self.parsed_pending[player], test=False)
-                else:
-                    self.parsed_pending[player] = json.dumps((self.IP_Agent[player].r,self.IP_Agent[player].c))
+                if self.parsed_pending[player] is None:
+                    if self.parsed_lastclick is not None and self.waiting == player:
+                        self.parsed_pending[player] = self.parsed_lastclick[player] 
+                    else:
+                        self.parsed_pending[player] = json.dumps((self.IP_Agent[player].r,self.IP_Agent[player].c))
+                self.attemptAction(player, self.parsed_pending[player], test=False)
+                    
                 # self.parsed_pending[player] = None
             # Sequential mechanism
             self.waiting = random.choice(list(self.parsed_pending.keys()))
@@ -327,7 +330,6 @@ class Board(models.Model):
             
             for player in self.parsed_needs_refresh:
                 if self.parsed_needs_refresh[player] == "False":
-                    print("set " + player + " to true")
                     self.parsed_needs_refresh[player] = "True"
             # Commit all actions 
             # Condense memory to only positions
@@ -339,7 +341,6 @@ class Board(models.Model):
                 self.parsed_history[-1] = None 
             self.parsed_history += [deepcopy(self.grid)]
             self.parsed_score_history += [self.getGlobalScore()]
-            print("Turn: ", len(self.parsed_score_history), " Score: ", self.getGlobalScore())
             self.saveState()
 
             # Determine if game has ended
@@ -377,7 +378,6 @@ class Board(models.Model):
                                 if ply.game_id == self.game_id:
                                     ply.redirected_gameid = new_game.id 
                                     ply.save()
-                                    print("player ", ply.id, " redirected_gameid: ", new_game.id)
                             # redirect = "end_round?game_id=-1"  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
                             redirect = "end_round?game_id=" + str(new_game.id) + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore() ) + "&pg_id=" + str(self.game_id)
                         else:
@@ -517,6 +517,10 @@ class Board(models.Model):
         my_game = Game.objects.get(id=self.game_id)
         seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
         output += "<br>(" + str(int(seq.parsed_data[my_game.parsed_seq_data["index"]][1]) - len(self.parsed_history)) + " turns remaining)"
+        output += "<br><br><div style='align:center'>"
+        output += "<img src='{0}' style='width: 25px; height: 25px;'></img> <i> = 1 score</i>".format(os.path.join(STATIC_URL,"tokens/dollar1_.png"))
+        output += "<br><img src='{0}' style='width: 25px; height: 25px;'></img> <i> = 5 score</i>".format(os.path.join(STATIC_URL,"tokens/dollar5_.png"))
+        output += "</br>"
         return output 
         
     def getDisplayCells(self, caller, history=-1):
@@ -541,14 +545,12 @@ class Board(models.Model):
                 repeated_covered_set += list(x)
         else:
             snapshots = 0
-            print("old history")
             for i in range(len(self.parsed_history)):
                 if self.parsed_history[i] != None:
                     snapshots+= 1
                     if snapshots == history:
                         snapshot = self.parsed_history[i]
                         history = i
-                        print("snapshot: ", str(snapshot))
                         for agent_ip in snapshot:
 
                             x = self.getCoveredSet(tuple(snapshot[agent_ip]), self.IP_Agent[agent_ip].coverage, self.neighbors)
@@ -557,7 +559,6 @@ class Board(models.Model):
                         break 
         for element in total_covered_set:
             repeated_covered_set.remove(element)
-        print(caller)
         
         repeated_covered_set = set(repeated_covered_set)
         for r in range(self.height):
@@ -630,6 +631,7 @@ class Board(models.Model):
     def saveState(self):
         self.history = json.dumps(self.parsed_history)
         self.pending = json.dumps(self.parsed_pending)
+        self.lastclick = json.dumps(self.parsed_lastclick)
         self.score_history = json.dumps(self.parsed_score_history)
         self.needs_refresh = json.dumps(self.parsed_needs_refresh)
         parsed_agents = {}
@@ -764,7 +766,6 @@ class Config(models.Model):
             for di in self.assigner_table:
                 self.parsed_assigner['table'][str(real_id + di)] = copy(self.assigner_table[di])
                 self.parsed_assigner['progress'][str(real_id + di)] = -1
-        print(self.parsed_assigner)
         self.parsed_assigner['progress'][str(real_id)] += 1 
         # Update 
         # Find current progress 
@@ -775,7 +776,6 @@ class Config(models.Model):
         else:
             
             progress = self.parsed_assigner['progress'][str(real_id)]
-            print("Game progress: ",progress)
             print(self.parsed_assigner)
             if self.parsed_assigner['table'][str(real_id)][progress] < 0:
                 # Hasn't been assigned a game yet, create one and assign peers to it 
@@ -788,7 +788,6 @@ class Config(models.Model):
                 seq_data["players"] = [] # Temporary hack 
                 seq_data["token_assignment"] = [] # Temporary hack 
                 new_game, msg = _create_game(seq_data)
-                print(msg)
                 # Update everyone else 
                 for i in range(6):
                     peer_id = (real_id // 6) * 6 + i
@@ -827,13 +826,11 @@ def async_timer(timer_stop):
             game.start_time = datetime.now(timezone.utc)
             game.save()
     if not timer_stop.is_set():
-        threading.Timer(2, async_timer, [timer_stop]).start()
+        threading.Timer(1, async_timer, [timer_stop]).start()
 
 
 def start_timer(timer_working, timer_stop):
     if Config.objects.get(main=True).timer_enabled:
         timer_working = True
-        print("start timer")
-        print(threading.active_count())
         async_timer(timer_stop)
             
