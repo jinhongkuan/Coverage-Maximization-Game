@@ -725,12 +725,12 @@ class Config(models.Model):
 
     parsed_assigner = None
     assigner_table = {
-        0: [-1,-2,-3,-4],
-        1: [-5,-6,-7,-8],
-        2: [-5,-6,-7,-8],
-        3: [-9,-10,-11,-12],
-        4: [-9,-10,-11,-12],
-        5: [-9,-10,-11,-12]
+        3: [-1,-2,-3,-4],
+        4: [-5,-6,-7,-8],
+        5: [-5,-6,-7,-8],
+        0: [-9,-10,-11,-12],
+        1: [-9,-10,-11,-12],
+        2: [-9,-10,-11,-12]
     }
     # Game: Map, Player count
     assigner_seq = {
@@ -762,7 +762,7 @@ class Config(models.Model):
         if str(real_id) not in self.parsed_assigner['table']:
             tab =  self.parsed_assigner['table']
             prog =  self.parsed_assigner['progress']
-            # assert(real_id % 6 == 0)
+            assert(real_id % 6 == 0)
             for di in self.assigner_table:
                 self.parsed_assigner['table'][str(real_id + di)] = copy(self.assigner_table[di])
                 self.parsed_assigner['progress'][str(real_id + di)] = -1
