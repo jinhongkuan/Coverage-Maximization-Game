@@ -762,7 +762,7 @@ class Config(models.Model):
         if str(real_id) not in self.parsed_assigner['table']:
             tab =  self.parsed_assigner['table']
             prog =  self.parsed_assigner['progress']
-            assert(real_id % 6 == 0)
+            # assert(real_id % 6 == 0)
             for di in self.assigner_table:
                 self.parsed_assigner['table'][str(real_id + di)] = copy(self.assigner_table[di])
                 self.parsed_assigner['progress'][str(real_id + di)] = -1
