@@ -317,7 +317,7 @@ class Board(models.Model):
             # test1
             for player in self.parsed_pending:
                 if self.parsed_pending[player] is None:
-                    if self.parsed_lastclick is not None and self.waiting == player:
+                    if self.parsed_lastclick[player] is not None and self.waiting == player:
                         self.parsed_pending[player] = self.parsed_lastclick[player] 
                     else:
                         self.parsed_pending[player] = json.dumps((self.IP_Agent[player].r,self.IP_Agent[player].c))
