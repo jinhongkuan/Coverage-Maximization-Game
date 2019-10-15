@@ -48,10 +48,11 @@ def game_view(request):
             intelligence=request.POST["intelligence"],\
             game_id=request.POST["prev_game_id"])
     if "command" in request.POST and request.POST["command"] == "Start Session":
-        new_game = Config.objects.get(main=True).generate_game(player.id)
-        new_game.add_player(player)
-        
-        player.save()
+        if player.game_id == -1:
+            new_game = Config.objects.get(main=True).generate_game(player.id)
+            new_game.add_player(player)
+            
+            player.save()
             
 
     elif "command" in request.POST and request.POST["command"] == "Join Session" or "join" in request.GET:
