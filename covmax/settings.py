@@ -95,13 +95,15 @@ WSGI_APPLICATION = 'covmax.wsgi.application'
 DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ['RDS_DB_NAME'],
-            'USER': os.environ['RDS_USERNAME'],
-            'PASSWORD': os.environ['RDS_PASSWORD'],
-            'HOST': os.environ['RDS_HOSTNAME'],
-            'PORT': os.environ['RDS_PORT'],
+            'NAME': 'ebdb',
+            'USER': 'admin',
+            'PASSWORD': '12345678',
+            'HOST': 'aa1mzzgd8cspyez.cgqfjrmrxi7x.us-east-2.rds.amazonaws.com',
+            'PORT': '3306',
         }
     }
+
+
 
 
 
