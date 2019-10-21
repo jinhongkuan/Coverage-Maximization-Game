@@ -359,7 +359,7 @@ def post_survey_view(request, **kwargs):
 
 def end_round_view(request):
     ip, _ = get_client_ip(request)
-    return render(request, "end_round.html", {"player_id": Player.objects.get(IP=ip), "game_id": request.GET["game_id"], "prev_game_id" : request.GET["pg_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"], "questionnaire_form": TeamEvalForm()})
+    return render(request, "end_round.html", {"player_id": Player.objects.get(IP=ip).id, "game_id": request.GET["game_id"], "prev_game_id" : request.GET["pg_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"], "questionnaire_form": TeamEvalForm()})
 
 
 def attach0_view(request):
