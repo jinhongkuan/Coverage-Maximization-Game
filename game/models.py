@@ -346,13 +346,20 @@ class Board(models.Model):
             # Determine if game has ended
             seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
             if len(self.parsed_history) > seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
-                # Move user to next game 
+                for player_ in self.IP_Player:
+                    new_game_id = Config.objects.get(main=True).generate_game(self.IP_Player[player_].id).id
+                    redirect = "end_round?game_id=" + str(new_game_id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
+                    print(redirect)
+                    self.parsed_needs_refresh[player_] = redirect 
+                self.saveState()
+                '''
+                    # Move user to next game 
                 # Create the next game
                 my_game = Game.objects.get(id=self.game_id) 
                 my_game.ongoing = False
                 my_game.save()
 
-                if caller == "admin":
+                if False:
                     seq_data = my_game.parsed_seq_data
                     seq = Sequence.objects.get(id=seq_data["id"])
                     new_index = seq_data["index"]+1
@@ -392,11 +399,8 @@ class Board(models.Model):
                         else:
                             redirect = "end_round?game_id=" + str(new_game.id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
                 else:
-                    new_game_id = Config.objects.get(main=True).generate_game(caller.id).id
-                    redirect = "end_round?game_id=" + str(new_game_id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
-                for player_ in self.parsed_needs_refresh:
-                    self.parsed_needs_refresh[player_] = redirect
-                self.saveState()
+                '''
+                
                 return redirect 
             # AI turn
 
@@ -725,12 +729,12 @@ class Config(models.Model):
 
     parsed_assigner = None
     assigner_table = {
-        3: [-1,-2,-3,-4],
-        4: [-5,-6,-7,-8],
-        5: [-5,-6,-7,-8],
-        0: [-9,-10,-11,-12],
-        1: [-9,-10,-11,-12],
-        2: [-9,-10,-11,-12]
+        0: [-1,-2,-3,-4],
+        1: [-5,-6,-7,-8],
+        2: [-5,-6,-7,-8],
+        3: [-9,-10,-11,-12],
+        4: [-9,-10,-11,-12],
+        5: [-9,-10,-11,-12]
     }
     # Game: Map, Player count
     assigner_seq = {
@@ -757,7 +761,7 @@ class Config(models.Model):
 
     def generate_game(self,player_id):
         # Progress ranges from 0 to 3, initialized to -1
-
+        print("game has ended!")
         real_id = player_id - Player.objects.first().id
         if str(real_id) not in self.parsed_assigner['table']:
             tab =  self.parsed_assigner['table']
@@ -772,7 +776,8 @@ class Config(models.Model):
         if self.parsed_assigner['progress'][str(real_id)] == 3:
             self.assigner = json.dumps(self.parsed_assigner)
             self.save()
-            return -2 # Player is done 
+            print(self.parsed_assigner['progress'])
+            return None # Player is done 
         else:
             
             progress = self.parsed_assigner['progress'][str(real_id)]
@@ -817,7 +822,6 @@ models.signals.post_init.connect(initialize_config, Config)
 
 def async_timer(timer_stop):
     ongoing_games = Game.objects.filter(ongoing=True)
-    print("tick")
     for game in ongoing_games:
         if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
             resp = Board.objects.get(id=game.board_id).handleTurn("admin", "tick")
