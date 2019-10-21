@@ -6,7 +6,7 @@ Board.objects.all().delete()
 Player.objects.all().delete()
 Agent.objects.all().delete()
 
-if len(Config.objects.get(main=True)) == 0:
+if len(Config.objects.filter(main=True)) == 0:
     Config.objects.create(main=True)
 
 A = Config.objects.get(main=True)

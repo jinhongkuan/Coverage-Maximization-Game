@@ -46,7 +46,8 @@ def game_view(request):
             activity=request.POST["activity"],\
             understanding=request.POST["understanding"],\
             intelligence=request.POST["intelligence"],\
-            game_id=request.POST["prev_game_id"])
+            game_id=request.POST["prev_game_id"],
+            player_id=request.POST["player_id"])
     if "command" in request.POST and request.POST["command"] == "Start Session":
         if player.game_id == -1:
             new_game = Config.objects.get(main=True).generate_game(player.id)
@@ -272,7 +273,7 @@ def admin_view(request):
                 translated_players += [x]
             translated_players = Sequence.objects.get(id=game.parsed_seq_data["id"]).parsed_players
             try:
-                survey_data = TeamEvalSurveyData.objects.get(game_id=game.id).pretty_print()
+                survey_data =  "Filled" if len(TeamEvalSurveyData.objects.filter(game_id=game.id)) > 0 else ""
             except:
                 survey_data = ""
             game_table[-1] += [make_href(game.id, redirect_url+str(game.id)), corresponding_board.getName(), list(corresponding_board.parsed_pending.keys()), str(len(corresponding_board.parsed_history)-1), str(translated_players), "{:0.2f}".format(sum(corresponding_board.parsed_score_history)/len(corresponding_board.parsed_score_history)), survey_data , make_href("X", "manage?game_del="+str(game.id))]
@@ -357,7 +358,8 @@ def post_survey_view(request, **kwargs):
         return render(request, "debrief.html")
 
 def end_round_view(request):
-    return render(request, "end_round.html", {"game_id": request.GET["game_id"], "prev_game_id" : request.GET["pg_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"], "questionnaire_form": TeamEvalForm()})
+    ip, _ = get_client_ip(request)
+    return render(request, "end_round.html", {"player_id": Player.objects.get(IP=ip), "game_id": request.GET["game_id"], "prev_game_id" : request.GET["pg_id"], "max_covered" : request.GET["b"], "cells_covered" : request.GET["a"], "questionnaire_form": TeamEvalForm()})
 
 
 def attach0_view(request):
