@@ -728,7 +728,14 @@ class Config(models.Model):
     assigner = models.TextField(null=False, default='{"table":{},"progress":{}}')
 
     parsed_assigner = None
-    assigner_table = {
+    assigner_table = { 0: [-1,-2,-3,-4],
+        1: [-5,-6,-7,-8],
+        2: [-5,-6,-7,-8],
+        3: [-9,-10,-11,-12],
+        4: [-9,-10,-11,-12],
+        5: [-9,-10,-11,-12]
+    }
+    assigner_table2 = {
         0: [-5,-6,-3,-4],
         1: [-1,-2,-3,-4],
         2: [-5,-10,-8,-9],
@@ -737,7 +744,7 @@ class Config(models.Model):
         5: [-7,-10,-3,-12]
     }
     # Game: Map, Player count
-    assigner_seq = {
+    assigner_seq2 = {
         1: (0,1),
         2: (1,2),
         3: (2,3),
@@ -752,6 +759,20 @@ class Config(models.Model):
         12: (3,1)
     }
 
+    assigner_seq = {
+        1: (0,1),
+        2: (1,1),
+        3: (2,1),
+        4: (3,1),
+        5: (0,2),
+        6: (1,2),
+        7: (2,2),
+        8: (3,2),
+        9: (0,3),
+        10: (1,3),
+        11: (2,3),
+        12: (3,3)
+    }
     def generate_seq(self, _name, maps, bot):
         for i in range(12):
             Sequence.objects.create(name="seq_"+_name+"_"+str(i+1), \
