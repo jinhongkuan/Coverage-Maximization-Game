@@ -341,7 +341,7 @@ class Board(models.Model):
                 self.parsed_history[-1] = None 
             self.parsed_history += [deepcopy(self.grid)]
             self.parsed_score_history += [self.getGlobalScore()]
-
+            self.saveState()
 
             # Determine if game has ended
             seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
@@ -349,9 +349,9 @@ class Board(models.Model):
                 for player_ in self.IP_Player:
                     new_game_id = Config.objects.get(main=True).generate_game(self.IP_Player[player_].id).id
                     redirect = "end_round?game_id=" + str(new_game_id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
-                    print(player_, ":", redirect)
+                    print(redirect)
                     self.parsed_needs_refresh[player_] = redirect 
-                
+                self.saveState()
                 '''
                     # Move user to next game 
                 # Create the next game
@@ -415,7 +415,7 @@ class Board(models.Model):
 
             if all_done:
                 redirect = "continue"
-            self.saveState()
+            
         return redirect
            
     def generateState(self, agent):
