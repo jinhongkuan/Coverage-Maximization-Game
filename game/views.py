@@ -150,8 +150,7 @@ def board_view(request):
                 redirect = player_board.parsed_needs_refresh[player.IP] 
             else:
                 redirect = ""
-        print("Refresh: ", player_board.parsed_needs_refresh[player.IP])
-        print("Redirect: ", redirect)
+        print("Refresh {}: ".format(ip), player_board.parsed_needs_refresh[player.IP])
         view_context = {
             "cells" : player_board.getDisplayCells(player),
             "message" : player_board.getMessage(player),

@@ -280,7 +280,6 @@ class Board(models.Model):
         my_game = Game.objects.get(id=self.game_id)
         should_continue = True
         if not my_game.ongoing:
-            print("Game has yet to be started")
             return "break" 
         
         # Fail-safe check
@@ -346,10 +345,12 @@ class Board(models.Model):
             # Determine if game has ended
             seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
             if len(self.parsed_history) > seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
+                my_game.ongoing = False
+                my_game.save()
                 for player_ in self.IP_Player:
                     new_game_id = Config.objects.get(main=True).generate_game(self.IP_Player[player_].id).id
                     redirect = "end_round?game_id=" + str(new_game_id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
-                    print(redirect)
+                    print(player_, ":",redirect)
                     self.parsed_needs_refresh[player_] = redirect 
                 self.saveState()
                 '''
