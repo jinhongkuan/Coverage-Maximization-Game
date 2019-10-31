@@ -100,7 +100,6 @@ DATABASES = {
             'PASSWORD': '12345678',
             'HOST': 'aa1mzzgd8cspyez.cgqfjrmrxi7x.us-east-2.rds.amazonaws.com',
             'PORT': '3306',
-            'ATOMIC_REQUESTS': True
         }
     }
 
