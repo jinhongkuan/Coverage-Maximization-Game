@@ -11,6 +11,7 @@ import csv
 from covmax.settings import STATIC_ROOT
 from covmax.constants import TURN_TIMER, timer_working, timer_stop
 import threading
+from django.db import atomic 
 # Create your models here.
 
 AI_MAX_ATTEMPT = 1000
@@ -230,7 +231,8 @@ class Board(models.Model):
         for player in self.IP_Agent:
             self.max_coverage_range = max(self.max_coverage_range, self.IP_Agent[player].coverage)
 
-
+    # TO BE CONTINUED
+    @transaction.atomic
     def add_player(self, caller, row, col, token_, settings):
         print("add player called ", str(caller))
         if caller.IP not in self.parsed_pending:
