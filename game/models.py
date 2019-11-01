@@ -345,11 +345,11 @@ class Board(models.Model):
 
             # Determine if game has ended
             seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
-            print("game_id:{0} ip_player:{1}".format(self.game_id, str(self.IP_Player)))
+            print("game_id:{0} parsed_human_players:{1}".format(self.game_id, str(my_game.parsed_human_players)))
             if len(self.parsed_history) > seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
                 my_game.ongoing = False
                 my_game.save()
-                for player_ in self.IP_Player:
+                for player_ in my_game.parsed_human_players:
                     new_game = Config.objects.get(main=True).generate_game(self.IP_Player[player_].id)
                     new_game_id = new_game.id if new_game is not None else -2 
 
