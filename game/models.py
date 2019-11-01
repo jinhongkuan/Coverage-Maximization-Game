@@ -344,11 +344,14 @@ class Board(models.Model):
 
             # Determine if game has ended
             seq = Sequence.objects.get(id=my_game.parsed_seq_data["id"])
+            print("game_id:{0} ip_player:{1}".format(self.game_id, str(self.IP_Player)))
             if len(self.parsed_history) > seq.parsed_data[my_game.parsed_seq_data["index"]][1]:
                 my_game.ongoing = False
                 my_game.save()
                 for player_ in self.IP_Player:
-                    new_game_id = Config.objects.get(main=True).generate_game(self.IP_Player[player_].id).id
+                    new_game = Config.objects.get(main=True).generate_game(self.IP_Player[player_].id)
+                    new_game_id = new_game.id if new_game is not None else -2 
+
                     redirect = "end_round?game_id=" + str(new_game_id)  + "&a=" + str(self.getGlobalScore()) + "&b=" + str(self.getOptimalScore()) + "&pg_id=" + str(self.game_id)
                     print(player_, ":",redirect)
                     self.parsed_needs_refresh[player_] = redirect 
@@ -795,7 +798,7 @@ class Config(models.Model):
         self.parsed_assigner['progress'][str(real_id)] += 1 
         # Update 
         # Find current progress 
-        if self.parsed_assigner['progress'][str(real_id)] == 3:
+        if self.parsed_assigner['progress'][str(real_id)] == 4: # Hard-code constant
             self.assigner = json.dumps(self.parsed_assigner)
             self.save()
             print(self.parsed_assigner['progress'])
