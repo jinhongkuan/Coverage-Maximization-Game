@@ -651,6 +651,7 @@ class Board(models.Model):
             self.IP_Agent[agent].save()
         self.agents = json.dumps(parsed_agents)
         self.save()
+        print("{0} completed save state ".format(self.game_id))
 
 class Sequence(models.Model):
     name = models.TextField(null=False)
