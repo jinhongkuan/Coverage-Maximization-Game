@@ -11,7 +11,7 @@ import csv
 from covmax.settings import STATIC_ROOT
 from covmax.constants import TURN_TIMER, timer_working, timer_stop
 import threading
-from django.db import atomic 
+from django.db import transaction 
 # Create your models here.
 
 AI_MAX_ATTEMPT = 1000
