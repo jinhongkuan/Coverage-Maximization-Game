@@ -78,6 +78,7 @@ class Game(models.Model):
 
         
     def add_player(self, player):
+        print("add player {0} to game_id={1}".format(player.IP, self.id))
         max_players = Sequence.objects.get(id=self.parsed_seq_data["id"]).parsed_players.count("player")
         if len(self.parsed_human_players) == max_players:
             print("Error joining, game is full")
