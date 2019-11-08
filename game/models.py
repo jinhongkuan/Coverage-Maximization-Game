@@ -651,6 +651,7 @@ class Board(models.Model):
             self.IP_Agent[agent].save()
         self.agents = json.dumps(parsed_agents)
         self.save()
+        print("gameid={0}, needs_refresh={1}".format(self.game_id, self.needs_refresh))
 
 class Sequence(models.Model):
     name = models.TextField(null=False)
