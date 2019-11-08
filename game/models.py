@@ -626,7 +626,7 @@ class Board(models.Model):
     def getGraphData(self):
         pass 
 
-    def getScore(average=True):
+    def getScore(self,average=True):
         if average:
             return sum(self.parsed_score_history)/len(self.parsed_score_history)
         else:
