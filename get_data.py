@@ -21,7 +21,7 @@ def generate_csv():
                 else:
                     x = survey.player_id
                 board = Board.objects.get(id=game.board_id)
-                output += [[game.id, x, len(game.parsed_human_players), board.name, board.getScore(), board.getOptimalScore(), ",".join(board.parsed_score_history), survey.difficulty, survey.satisfaction, survey.confusion, survey.collaboration, survey.contribution, survey.interaction, survey.isolation, survey.activity, survey.understanding, survey.intelligence ]]
+                output += [[game.id, x, len(game.parsed_human_players), board.name, board.getScore(), board.getOptimalScore(), ",".join([str(x) for x in board.parsed_score_history]), survey.difficulty, survey.satisfaction, survey.confusion, survey.collaboration, survey.contribution, survey.interaction, survey.isolation, survey.activity, survey.understanding, survey.intelligence ]]
 
     with open("data.csv", "w", newline="") as f:
         writer = csv.writer(f, delimiter=";")
