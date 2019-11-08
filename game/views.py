@@ -16,6 +16,7 @@ import plotly
 import plotly.graph_objects as go 
 from customsurvey.forms import TeamEvalForm, QuizForm
 from customsurvey.models import TeamEvalSurveyData
+from get_data import generate_csv
 def main_view(request):
 
     return render(request, "main.html")
@@ -416,6 +417,9 @@ def end_view(request):
 
 def download(request):
     file_path = request.POST["file"]
+    if file_path == "data.csv":
+        generate_csv() 
+
     if os.path.exists(file_path):
         with open(file_path, 'rb') as fh:
             response = HttpResponse(fh.read())
