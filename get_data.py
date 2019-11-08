@@ -22,7 +22,7 @@ for game in Game.objects.all():
             output += [[game.id, x, len(game.parsed_human_players), board.name, survey.difficulty, survey.satisfaction, survey.confusion, survey.collaboration, survey.contribution, survey.interaction, survey.isolation, survey.activity, survey.understanding, survey.intelligence ]]
 
 with open("data.csv", "w", newline="") as f:
-    writer = csv.writer(f, sep=";")
+    writer = csv.writer(f, delimiter=";")
     writer.writerow(col_heads)
     for row in output:
         writer.writerow(row)
