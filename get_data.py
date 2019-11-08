@@ -3,7 +3,9 @@ from player.models import Player
 import csv 
 import json 
 from customsurvey.models import TeamEvalSurveyData 
+import os 
 
+os.chdir(os.path.dirname(__file__))
 # Different sheet for different team compositions 
 # Game ID, Player Name, Num Players, Map, Avg Score, Score History, Ratings
 col_heads = ["game_id", "player_ip", "num players", "map", "avg score", "optimal score", "history","difficulty", "satisfaction","confusion","collaboration","contribution","interaction","isolation","activity","understanding","intelligence"]
