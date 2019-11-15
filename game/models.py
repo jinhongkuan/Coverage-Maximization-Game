@@ -850,6 +850,7 @@ def initialize_config(instance, **kwargs):
 models.signals.post_init.connect(initialize_config, Config)
 
 def async_timer(timer_stop):
+    print("tick")
     ongoing_games = Game.objects.filter(ongoing=True)
     for game in ongoing_games:
         if datetime.now(timezone.utc) - game.start_time >= timedelta(seconds=TURN_TIMER):
