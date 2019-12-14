@@ -744,12 +744,12 @@ class Config(models.Model):
         5: [-9,-10,-11,-12]
     }
     assigner_table = {
-        0: [-5,-6,-3,-4],
-        1: [-1,-2,-3,-4],
-        2: [-5,-10,-8,-9],
-        3: [-7,-2,-8,-9],
-        4: [-7,-10,-11,-4],
-        5: [-7,-10,-3,-12]
+        0: [-13,-5,-6,-3,-4],
+        1: [-14,-1,-2,-3,-4],
+        2: [-15,-5,-10,-8,-9],
+        3: [-16,-7,-2,-8,-9],
+        4: [-17,-7,-10,-11,-4],
+        5: [-18,-7,-10,-3,-12]
     }
     # Game: Map, Player count
     assigner_seq = {
@@ -764,7 +764,13 @@ class Config(models.Model):
         9: (3,2),
         10: (1,3),
         11: (2,1),
-        12: (3,1)
+        12: (3,1),
+        13: (4,1),
+        14: (4,1),
+        15: (4,1),
+        16: (4,1),
+        17: (4,1),
+        18: (4,1)
     }
 
     assigner_seq2 = {
@@ -782,10 +788,10 @@ class Config(models.Model):
         12: (3,3)
     }
     def generate_seq(self, _name, maps, bot):
-        for i in range(12):
-            Sequence.objects.create(name="seq_"+_name+"_"+str(i+1), \
-                data=json.dumps([maps[self.assigner_seq[i+1][0]]]), \
-                    players=json.dumps(["player"]*self.assigner_seq[i+1][1]+[bot]*(3-self.assigner_seq[i+1][1])))
+        for i in range(1, len(self.assigner_seq)+1):
+            Sequence.objects.create(name="seq_"+_name+"_"+str(i), \
+                data=json.dumps([maps[self.assigner_seq[i][0]]]), \
+                    players=json.dumps(["player"]*self.assigner_seq[i][1]+[bot]*(3-self.assigner_seq[i][1])))
 
 
     def generate_game(self,player_id):

@@ -26,7 +26,7 @@ SECRET_KEY = '_i_s!hy)@8fefq@ot_c$h9h3&!1qe$7wrp2b&7k_@fuz_)ao+p'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['covmax-dev.us-east-2.elasticbeanstalk.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['covmax-dev.us-east-2.elasticbeanstalk.com', 'covmax-env-1.8ymptasycz.us-east-1.elasticbeanstalk.com', '127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -96,9 +96,9 @@ DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'ebdb',
-            'USER': 'admin',
+            'USER': 'dbuser',
             'PASSWORD': '12345678',
-            'HOST': 'aa1kuebcz0j2dlf.cgqfjrmrxi7x.us-east-2.rds.amazonaws.com',
+            'HOST': 'aa1mjsgqakn7oqt.ct9xp9mw2vdv.us-east-1.rds.amazonaws.com',
             'PORT': '3306',
             'ATOMIC_REQUESTS' : True 
         }
