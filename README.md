@@ -13,6 +13,9 @@
 cd [project directory]
 venv 
 ```
+
+3. In the settings file (.../cov-max/covmax/settings.py), update the ALLOWED_HOST include '127.0.0.1', and set the 'local' DATABASE to be the 'default' database.
+
 3. To prepare the database for the first time / reset the database:
 ```sh 
 python manage.py makemigrations
@@ -26,7 +29,7 @@ python manage.py shell < clear_all.py
 python manage.py runserver 
 ```
 
-5. Access the game at 127.0.0.1. Note that since it is a multiplayer game, hosting on a local machine does not allow other players to join the game.  
+5. Access the game at 127.0.0.1. Note that since it is a multiplayer game, hosting on a local machine does not allow other players to join the game, but can be used for testing. 
 
 ## On Server 
 This webapp can be hosted on any server that provides database service (required because multiplayer game demands high concurrency)
@@ -41,7 +44,7 @@ The guide below shows the specifics of hosting on Amazon ElasticBeanstalk servic
 
 4. Configure elasticbeanstalk to work with the project: https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-configuration.html. Agree to setting up ssh. 
 
-5. Update the ALLOWED_HOST and DATABASE field in the settings file (.../cov-max/covmax/settings.py) to work with the server 
+5. Update the ALLOWED_HOST and 'default' DATABASE field in the settings file (.../cov-max/covmax/settings.py) to work with the server. 
 
 6. Deploy the app to the server:
 ```sh
